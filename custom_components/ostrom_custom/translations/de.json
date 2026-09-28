@@ -1,0 +1,49 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ostrom Stromvertrag einrichten",
+        "description": "Gib deine Ostrom Developer API Zugangsdaten ein. Diese findest du im Ostrom Developer Portal.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "zip_code": "Postleitzahl (Lieferadresse)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur Ostrom API fehlgeschlagen. Bitte Internetverbindung prüfen.",
+      "invalid_auth": "Ungültige Client-ID oder ungültiges Client-Secret.",
+      "rate_limited": "Ostrom API Ratenlimit erreicht. Bitte versuche es später erneut.",
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten."
+    },
+    "abort": {
+      "already_configured": "Dieser Ostrom-Account ist bereits eingerichtet."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Aktueller Strompreis"
+      },
+      "monthly_base_fee": {
+        "name": "Monatliche Grundgebühr"
+      },
+      "price_level": {
+        "name": "Preisstufe"
+      },
+      "price_rank": {
+        "name": "Preis Rang heute"
+      },
+      "accrued_cost_today": {
+        "name": "Stromkosten heute"
+      },
+      "energy_consumption_today": {
+        "name": "Stromverbrauch heute"
+      },
+      "meter_reading": {
+        "name": "Zählerstand"
+      }
+    }
+  }
+}
