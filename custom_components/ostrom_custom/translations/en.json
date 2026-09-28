@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Ostrom Electricity Contract",
+        "description": "Enter your Ostrom Developer API credentials. You can find them in the Ostrom Developer Portal.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "zip_code": "Postal Code (Delivery Address)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Ostrom API. Please check your internet connection.",
+      "invalid_auth": "Invalid Client ID or Client Secret.",
+      "rate_limited": "Ostrom API rate limit reached. Please try again later.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Ostrom account is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {"name": "Current electricity price"},
+      "next_hour_price": {"name": "Price next hour"},
+      "avg_today": {"name": "Average price today"},
+      "min_today": {"name": "Lowest price today"},
+      "lowest_price_time_today": {"name": "Lowest price time today"},
+      "max_today": {"name": "Highest price today"},
+      "highest_price_time_today": {"name": "Highest price time today"},
+      "avg_tomorrow": {"name": "Average price tomorrow"},
+      "min_tomorrow": {"name": "Lowest price tomorrow"},
+      "lowest_price_time_tomorrow": {"name": "Lowest price time tomorrow"},
+      "max_tomorrow": {"name": "Highest price tomorrow"},
+      "highest_price_time_tomorrow": {"name": "Highest price time tomorrow"},
+      "monthly_base_fee": {"name": "Monthly base fee"},
+      "price_level": {"name": "Price level"},
+      "price_rank": {"name": "Price rank today"},
+      "accrued_cost_today": {"name": "Electricity cost today"},
+      "energy_consumption_today": {"name": "Electricity consumption today"},
+      "meter_reading": {"name": "Meter reading"}
+    }
+  }
+}

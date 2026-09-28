@@ -1,0 +1,12 @@
+{
+  "domain": "ostrom_custom",
+  "name": "Ostrom",
+  "codeowners": ["@KIDOPA"],
+  "config_flow": true,
+  "documentation": "https://github.com/KIDOPA/ha_ostrom",
+  "issue_tracker": "https://github.com/KIDOPA/ha_ostrom/issues",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "version": "1.2.0",
+  "requirements": ["aiohttp>=3.9.0"]
+}
