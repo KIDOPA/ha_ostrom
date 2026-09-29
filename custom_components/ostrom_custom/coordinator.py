@@ -1,9 +1,11 @@
 """DataUpdateCoordinator für Ostrom mit Preisen, Verträgen und Verbrauch."""
 from __future__ import annotations
 
+import calendar
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import logging
+import math
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -54,7 +56,12 @@ class OstromData:
     gross_monthly_ostrom_fee: float = 0.0  # Ostrom Grundgebühr
     gross_monthly_grid_fee: float = 0.0  # Netzentgelte Grundgebühr
     gross_monthly_base_fee: float = 0.0  # Gesamte Grundgebühr pro Monat
-    daily_base_fee: float = 0.0  # Anteilige Grundgebühr pro Tag
+    daily_base_fee: float = 0.0  # Anteilige Grundgebühr heute
+    daily_base_fee_yesterday: float = 0.0  # Anteilige Grundgebühr gestern
+    daily_base_fee_48h: float = 0.0  # Anteilige Grundgebühr vor 48h
+    hourly_base_fee_today: float = 0.0  # Anteilige Grundgebühr pro Stunde heute
+    hourly_base_fee_yesterday: float = 0.0  # Anteilige Grundgebühr pro Stunde gestern
+    hourly_base_fee_48h: float = 0.0  # Anteilige Grundgebühr pro Stunde vor 48h
 
     # Metriken & Rankings
     price_level: str = "normal"
@@ -69,14 +76,20 @@ class OstromData:
     # Kosten & Verbrauch gestern (Vortag / T-1)
     accrued_cost_yesterday: float | None = None
     total_cost_yesterday_with_base_fee: float | None = None
+    market_cost_yesterday: float | None = None
+    tax_cost_yesterday: float | None = None
     energy_consumption_yesterday: float | None = None
     yesterday_date: str | None = None
+    hourly_breakdown_yesterday: list[dict[str, Any]] = field(default_factory=list)
 
     # Kosten & Verbrauch vor 48h (vor 2 Tagen / T-2)
     accrued_cost_48h: float | None = None
     total_cost_48h_with_base_fee: float | None = None
+    market_cost_48h: float | None = None
+    tax_cost_48h: float | None = None
     energy_consumption_48h: float | None = None
     date_48h: str | None = None
+    hourly_breakdown_48h: list[dict[str, Any]] = field(default_factory=list)
 
     # Verläufe & Forecast (ApexCharts / Energy Dashboard kompatibel)
     prices_today: list[dict[str, Any]] = field(default_factory=list)
@@ -137,7 +150,7 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             local_now.date() + timedelta(days=2), time.min, tzinfo=local_tz
         )
         start_of_past = datetime.combine(
-            local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
+            local_now.date() - timedelta(days=2), time.min, tzinfo=timezone.utc
         )
 
         try:
@@ -183,10 +196,10 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
 
             if self.contract_id:
                 start_consumption = datetime.combine(
-                    local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
+                    local_now.date() - timedelta(days=2), time.min, tzinfo=timezone.utc
                 )
                 end_consumption = datetime.combine(
-                    local_now.date() + timedelta(days=1), time.min, tzinfo=local_tz
+                    local_now.date() + timedelta(days=1), time.min, tzinfo=timezone.utc
                 )
                 return await self.api.async_get_energy_consumption(
                     self.contract_id, start_consumption, end_consumption
@@ -216,6 +229,12 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         prices_tomorrow: list[dict[str, Any]] = []
         forecast: list[dict[str, Any]] = []
         prices_by_interval: dict[datetime, float] = {}
+        market_by_interval: dict[datetime, float] = {}
+        tax_by_interval: dict[datetime, float] = {}
+
+        prices_by_hour_key: dict[str, float] = {}
+        market_by_hour_key: dict[str, float] = {}
+        tax_by_hour_key: dict[str, float] = {}
 
         current_price: float | None = None
         next_hour_price: float | None = None
@@ -236,6 +255,8 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
 
             # Gesamt-Arbeitspreis (EUR/kWh)
             gross_total_kwh = (gross_kwh + gross_tax) / 100.0
+            gross_market_kwh = gross_kwh / 100.0
+            gross_tax_kwh = gross_tax / 100.0
 
             if "grossMonthlyOstromBaseFee" in item:
                 monthly_ostrom_fee = float(item["grossMonthlyOstromBaseFee"])
@@ -243,6 +264,16 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
                 monthly_grid_fee = float(item["grossMonthlyGridFees"])
 
             prices_by_interval[dt] = gross_total_kwh
+            market_by_interval[dt] = gross_market_kwh
+            tax_by_interval[dt] = gross_tax_kwh
+
+            raw_ts = str(item.get("date", ""))
+            if len(raw_ts) >= 13:
+                h_key = raw_ts[:13]
+                prices_by_hour_key[h_key] = gross_total_kwh
+                market_by_hour_key[h_key] = gross_market_kwh
+                tax_by_hour_key[h_key] = gross_tax_kwh
+
             local_dt = dt.astimezone(local_tz)
             end_dt = local_dt + timedelta(hours=1)
 
@@ -324,56 +355,149 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
                     break
 
         monthly_base_total = round(monthly_ostrom_fee + monthly_grid_fee, 2)
-        daily_base_fee = round((monthly_base_total * 12) / 365.0, 3)
 
         yesterday = today - timedelta(days=1)
         two_days_ago = today - timedelta(days=2)
 
+        def _calculate_daily_base_fee(target_date: date) -> float:
+            if monthly_base_total <= 0:
+                return 0.0
+            days_in_month = calendar.monthrange(target_date.year, target_date.month)[1]
+            return round(math.ceil(monthly_base_total / days_in_month * 100) / 100, 2)
+
+        def _calculate_hourly_base_fee(target_date: date) -> float:
+            if monthly_base_total <= 0:
+                return 0.0
+            days_in_month = calendar.monthrange(target_date.year, target_date.month)[1]
+            return round(monthly_base_total / (days_in_month * 24), 5)
+
+        daily_base_fee_today = _calculate_daily_base_fee(today)
+        daily_base_fee_yesterday = _calculate_daily_base_fee(yesterday)
+        daily_base_fee_48h = _calculate_daily_base_fee(two_days_ago)
+
+        hourly_base_fee_today = _calculate_hourly_base_fee(today)
+        hourly_base_fee_yesterday = _calculate_hourly_base_fee(yesterday)
+        hourly_base_fee_48h = _calculate_hourly_base_fee(two_days_ago)
+
+        today_str = str(today)
+        yesterday_str = str(yesterday)
+        two_days_ago_str = str(two_days_ago)
+
+        sorted_consumption = sorted(consumption_data, key=lambda x: str(x.get("date", "")))
+
+        hourly_breakdown_today: list[dict[str, Any]] = []
+        hourly_breakdown_yesterday: list[dict[str, Any]] = []
+        hourly_breakdown_48h: list[dict[str, Any]] = []
+
         has_today = False
         kwh_today = 0.0
         cost_today = 0.0
+        market_cost_today = 0.0
+        tax_cost_today = 0.0
 
         has_yesterday = False
         kwh_yesterday = 0.0
         cost_yesterday = 0.0
+        market_cost_yesterday = 0.0
+        tax_cost_yesterday = 0.0
 
         has_48h = False
         kwh_48h = 0.0
         cost_48h = 0.0
+        market_cost_48h = 0.0
+        tax_cost_48h = 0.0
 
-        for item in consumption_data:
-            consumption_dt = self._parse_api_date(item["date"]).replace(
-                minute=0, second=0, microsecond=0
-            )
-            item_date = consumption_dt.astimezone(local_tz).date()
+        for item in sorted_consumption:
+            raw_date = str(item.get("date", ""))
+            date_day = raw_date[:10]
+            hour_key = raw_date[:13] if len(raw_date) >= 13 else ""
+
+            try:
+                consumption_dt = self._parse_api_date(raw_date).replace(
+                    minute=0, second=0, microsecond=0
+                )
+                hour_num = consumption_dt.hour
+            except Exception:
+                consumption_dt = None
+                hour_num = (
+                    int(raw_date[11:13])
+                    if len(raw_date) >= 13 and raw_date[11:13].isdigit()
+                    else 0
+                )
+
             kwh = float(item.get("kWh", item.get("kwh", item.get("consumptionKwh", 0.0))))
-            unit_price = prices_by_interval.get(consumption_dt)
 
-            if item_date == today:
+            unit_price = prices_by_hour_key.get(hour_key)
+            market_price = market_by_hour_key.get(hour_key)
+            tax_price = tax_by_hour_key.get(hour_key)
+
+            if unit_price is None and consumption_dt is not None:
+                unit_price = prices_by_interval.get(consumption_dt)
+                market_price = market_by_interval.get(consumption_dt)
+                tax_price = tax_by_interval.get(consumption_dt)
+
+            cost_slot = round(kwh * unit_price, 4) if unit_price is not None else 0.0
+            market_slot = round(kwh * market_price, 4) if market_price is not None else 0.0
+            tax_slot = round(kwh * tax_price, 4) if tax_price is not None else 0.0
+
+            if date_day == today_str:
+                h_fee = hourly_base_fee_today
+            elif date_day == yesterday_str:
+                h_fee = hourly_base_fee_yesterday
+            elif date_day == two_days_ago_str:
+                h_fee = hourly_base_fee_48h
+            else:
+                h_fee = 0.0
+
+            slot_entry = {
+                "uhrzeit": f"{hour_num:02d}:00 - {(hour_num + 1) % 24:02d}:00",
+                "verbrauch_kwh": round(kwh, 4),
+                "arbeitspreis_eur_kwh": round(unit_price, 5) if unit_price is not None else None,
+                "marktpreis_eur_kwh": round(market_price, 5) if market_price is not None else None,
+                "abgaben_eur_kwh": round(tax_price, 5) if tax_price is not None else None,
+                "kosten_reiner_verbrauch_eur": cost_slot,
+                "anteilige_grundgebuehr_stunde_eur": h_fee,
+                "kosten_gesamt_inkl_grundgebuehr_eur": round(cost_slot + h_fee, 4),
+                "kosten_eur": cost_slot,
+            }
+
+            if date_day == today_str:
                 has_today = True
                 kwh_today += kwh
-                if unit_price is not None:
-                    cost_today += kwh * unit_price
-            elif item_date == yesterday:
+                cost_today += cost_slot
+                market_cost_today += market_slot
+                tax_cost_today += tax_slot
+                hourly_breakdown_today.append(slot_entry)
+            elif date_day == yesterday_str:
                 has_yesterday = True
                 kwh_yesterday += kwh
-                if unit_price is not None:
-                    cost_yesterday += kwh * unit_price
-            elif item_date == two_days_ago:
+                cost_yesterday += cost_slot
+                market_cost_yesterday += market_slot
+                tax_cost_yesterday += tax_slot
+                hourly_breakdown_yesterday.append(slot_entry)
+            elif date_day == two_days_ago_str:
                 has_48h = True
                 kwh_48h += kwh
-                if unit_price is not None:
-                    cost_48h += kwh * unit_price
+                cost_48h += cost_slot
+                market_cost_48h += market_slot
+                tax_cost_48h += tax_slot
+                hourly_breakdown_48h.append(slot_entry)
 
         # Kosten heute
         accrued_cost_today = round(cost_today, 2)
-        total_cost_today_with_base_fee = round(accrued_cost_today + daily_base_fee, 2)
+        total_cost_today_with_base_fee = round(accrued_cost_today + daily_base_fee_today, 2)
         energy_consumption_today = round(kwh_today, 3)
 
         # Kosten & Verbrauch gestern (Vortag / T-1)
         accrued_cost_yesterday = round(cost_yesterday, 2) if has_yesterday else None
         total_cost_yesterday_with_base_fee = (
-            round(cost_yesterday + daily_base_fee, 2) if has_yesterday else None
+            round(cost_yesterday + daily_base_fee_yesterday, 2) if has_yesterday else None
+        )
+        market_cost_yesterday_val = (
+            round(market_cost_yesterday, 2) if has_yesterday else None
+        )
+        tax_cost_yesterday_val = (
+            round(tax_cost_yesterday, 2) if has_yesterday else None
         )
         energy_consumption_yesterday = (
             round(kwh_yesterday, 3) if has_yesterday else None
@@ -382,7 +506,13 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         # Kosten & Verbrauch vor 48h (vor 2 Tagen / T-2)
         accrued_cost_48h = round(cost_48h, 2) if has_48h else None
         total_cost_48h_with_base_fee = (
-            round(cost_48h + daily_base_fee, 2) if has_48h else None
+            round(cost_48h + daily_base_fee_48h, 2) if has_48h else None
+        )
+        market_cost_48h_val = (
+            round(market_cost_48h, 2) if has_48h else None
+        )
+        tax_cost_48h_val = (
+            round(tax_cost_48h, 2) if has_48h else None
         )
         energy_consumption_48h = (
             round(kwh_48h, 3) if has_48h else None
@@ -406,7 +536,12 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             gross_monthly_ostrom_fee=monthly_ostrom_fee,
             gross_monthly_grid_fee=monthly_grid_fee,
             gross_monthly_base_fee=monthly_base_total,
-            daily_base_fee=daily_base_fee,
+            daily_base_fee=daily_base_fee_today,
+            daily_base_fee_yesterday=daily_base_fee_yesterday,
+            daily_base_fee_48h=daily_base_fee_48h,
+            hourly_base_fee_today=hourly_base_fee_today,
+            hourly_base_fee_yesterday=hourly_base_fee_yesterday,
+            hourly_base_fee_48h=hourly_base_fee_48h,
             price_level=price_level,
             rank=rank,
             meter_reading=None,
@@ -415,12 +550,18 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             energy_consumption_today=energy_consumption_today,
             accrued_cost_yesterday=accrued_cost_yesterday,
             total_cost_yesterday_with_base_fee=total_cost_yesterday_with_base_fee,
+            market_cost_yesterday=market_cost_yesterday_val,
+            tax_cost_yesterday=tax_cost_yesterday_val,
             energy_consumption_yesterday=energy_consumption_yesterday,
             yesterday_date=str(yesterday),
+            hourly_breakdown_yesterday=hourly_breakdown_yesterday,
             accrued_cost_48h=accrued_cost_48h,
             total_cost_48h_with_base_fee=total_cost_48h_with_base_fee,
+            market_cost_48h=market_cost_48h_val,
+            tax_cost_48h=tax_cost_48h_val,
             energy_consumption_48h=energy_consumption_48h,
             date_48h=str(two_days_ago),
+            hourly_breakdown_48h=hourly_breakdown_48h,
             prices_today=prices_today,
             prices_tomorrow=prices_tomorrow,
             forecast=forecast,

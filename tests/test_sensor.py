@@ -134,7 +134,9 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sensor_max_tomorrow_time.native_value, "18:00")
 
         sensor_cost_yesterday = OstromAccruedCostYesterdaySensor(self.coordinator, self.entry)
-        self.assertEqual(sensor_cost_yesterday.native_value, 2.34)
+        self.assertEqual(sensor_cost_yesterday.native_value, 2.68)
+        self.assertEqual(sensor_cost_yesterday.extra_state_attributes["reine_verbrauchskosten_gestern"], 2.34)
+        self.assertEqual(sensor_cost_yesterday.extra_state_attributes["gesamtkosten_gestern_inkl_grundgebuehr"], 2.68)
 
         sensor_kwh_48h = OstromConsumption48hSensor(self.coordinator, self.entry)
         self.assertEqual(sensor_kwh_48h.native_value, 9.2)

@@ -102,7 +102,7 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data.gross_monthly_ostrom_fee, 6.00)
         self.assertEqual(data.gross_monthly_grid_fee, 4.50)
         self.assertEqual(data.gross_monthly_base_fee, 10.50)
-        self.assertAlmostEqual(data.daily_base_fee, 0.345, places=3)
+        self.assertEqual(data.daily_base_fee, 0.35)
 
         self.assertAlmostEqual(data.min_today, 0.20, places=4)
         self.assertAlmostEqual(data.max_today, 0.43, places=4)
@@ -115,13 +115,105 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
         # Gestern
         self.assertAlmostEqual(data.energy_consumption_yesterday, 5.0, places=3)
         self.assertAlmostEqual(data.accrued_cost_yesterday, 1.10, places=2)
+        self.assertAlmostEqual(data.total_cost_yesterday_with_base_fee, 1.45, places=2)
+        self.assertEqual(data.market_cost_yesterday, 0.60)
+        self.assertEqual(data.tax_cost_yesterday, 0.50)
+        self.assertEqual(len(data.hourly_breakdown_yesterday), 1)
         self.assertEqual(data.yesterday_date, "2026-09-28")
 
         # Vor 48h
         self.assertAlmostEqual(data.energy_consumption_48h, 10.0, places=3)
         self.assertAlmostEqual(data.accrued_cost_48h, 2.40, places=2)
+        self.assertAlmostEqual(data.total_cost_48h_with_base_fee, 2.75, places=2)
+        self.assertEqual(data.market_cost_48h, 1.40)
+        self.assertEqual(data.tax_cost_48h, 1.00)
+        self.assertEqual(len(data.hourly_breakdown_48h), 1)
         self.assertEqual(data.date_48h, "2026-09-27")
+
+    def test_exact_cost_breakdown_scenario(self) -> None:
+        """Verifiziert das exakte Zusammenspiel von Marktpreis, Abgaben und Grundpreis."""
+        local_tz = ZoneInfo("Europe/Berlin")
+        now_utc = datetime(2026, 9, 29, 12, 0, tzinfo=timezone.utc)
+
+        spot_data = [
+            {
+                "date": "2026-09-28T14:00:00.000Z",
+                "grossKwhPrice": 20.0617,
+                "grossKwhTaxAndLevies": 17.0782,
+                "grossMonthlyOstromBaseFee": 14.94,
+                "grossMonthlyGridFees": 0.0,
+            }
+        ]
+        consumption_data = [
+            {"date": "2026-09-28T14:00:00.000Z", "kWh": 9.72},
+        ]
+
+        data = self.coordinator._process_all(
+            spot_data=spot_data,
+            consumption_data=consumption_data,
+            local_tz=local_tz,
+            now_utc=now_utc,
+        )
+
+        self.assertEqual(data.energy_consumption_yesterday, 9.72)
+        self.assertEqual(data.daily_base_fee, 0.50)
+        self.assertAlmostEqual(data.market_cost_yesterday, 1.95, places=2)
+        self.assertAlmostEqual(data.tax_cost_yesterday, 1.66, places=2)
+        self.assertAlmostEqual(data.accrued_cost_yesterday, 3.61, places=2)
+        self.assertAlmostEqual(data.total_cost_yesterday_with_base_fee, 4.11, places=2)
+        self.assertEqual(len(data.hourly_breakdown_yesterday), 1)
+        self.assertEqual(data.hourly_breakdown_yesterday[0]["uhrzeit"], "14:00 - 15:00")
+        self.assertEqual(data.hourly_breakdown_yesterday[0]["verbrauch_kwh"], 9.72)
+
+    def test_daily_and_hourly_base_fee_per_month(self) -> None:
+        """Testet, dass die 14.94 EUR monatliche Grundgebühr exakt durch die Monatstage und Monatsstunden geteilt wird."""
+        local_tz = ZoneInfo("Europe/Berlin")
+
+        # 1. August (31 Tage)
+        now_utc_august = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
+        spot_data_august = [
+            {
+                "date": "2026-08-20T10:00:00.000Z",
+                "grossKwhPrice": 10.0,
+                "grossKwhTaxAndLevies": 10.0,
+                "grossMonthlyOstromBaseFee": 14.94,
+                "grossMonthlyGridFees": 0.0,
+            }
+        ]
+        data_august = self.coordinator._process_all(
+            spot_data=spot_data_august,
+            consumption_data=[],
+            local_tz=local_tz,
+            now_utc=now_utc_august,
+        )
+        # 14.94 / 31 = 0.4819... -> 0.49 EUR / Tag
+        self.assertEqual(data_august.daily_base_fee, 0.49)
+        # 14.94 / (31 * 24) = 0.02008 EUR / Stunde
+        self.assertEqual(data_august.hourly_base_fee_today, 0.02008)
+
+        # 2. September (30 Tage)
+        now_utc_september = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+        spot_data_september = [
+            {
+                "date": "2026-09-20T10:00:00.000Z",
+                "grossKwhPrice": 10.0,
+                "grossKwhTaxAndLevies": 10.0,
+                "grossMonthlyOstromBaseFee": 14.94,
+                "grossMonthlyGridFees": 0.0,
+            }
+        ]
+        data_september = self.coordinator._process_all(
+            spot_data=spot_data_september,
+            consumption_data=[],
+            local_tz=local_tz,
+            now_utc=now_utc_september,
+        )
+        # 14.94 / 30 = 0.498 -> 0.50 EUR / Tag
+        self.assertEqual(data_september.daily_base_fee, 0.50)
+        # 14.94 / (30 * 24) = 0.02075 EUR / Stunde
+        self.assertEqual(data_september.hourly_base_fee_today, 0.02075)
 
 
 if __name__ == "__main__":
     unittest.main()
+

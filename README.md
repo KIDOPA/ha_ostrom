@@ -47,10 +47,10 @@ Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 | **Monatliche Grundgebühr** | `sensor.ostrom_monatliche_grundgebuhr` | `EUR` | Feste monatliche Gebühren (Ostrom + Netzentgelte). |
 | **Preisstufe** | `sensor.ostrom_preisstufe` | Text | `sehr_guenstig`, `guenstig`, `normal`, `teuer`, `sehr_teuer`. |
 | **Preis Rang heute** | `sensor.ostrom_preis_rang_heute` | Zahl | Rang der aktuellen Stunde (1 = billigste Stunde, 24 = teuerste). |
-| **Stromkosten gestern** | `sensor.ostrom_stromkosten_gestern` | `EUR` | Echte, abgerechnete Stromkosten für den gestrigen Tag (Vortag). |
-| **Stromverbrauch gestern** | `sensor.ostrom_stromverbrauch_gestern` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von gestern. |
-| **Stromkosten vor 48h** | `sensor.ostrom_stromkosten_vor_48h` | `EUR` | Echte, abgerechnete Stromkosten von vor 48 Stunden (vor 2 Tagen). |
-| **Stromverbrauch vor 48h** | `sensor.ostrom_stromverbrauch_vor_48h` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von vor 48 Stunden. |
+| **Stromkosten gestern** | `sensor.ostrom_stromkosten_gestern` | `EUR` | Gesamtkosten von gestern exakt wie in der Ostrom-App (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
+| **Stromverbrauch gestern** | `sensor.ostrom_stromverbrauch_gestern` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von gestern (inkl. 24h-Stundenwerte in Attributen). |
+| **Stromkosten vor 48h** | `sensor.ostrom_stromkosten_vor_48h` | `EUR` | Gesamtkosten von vor 48 Stunden exakt wie in der Ostrom-App (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
+| **Stromverbrauch vor 48h** | `sensor.ostrom_stromverbrauch_vor_48h` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von vor 48 Stunden (inkl. 24h-Stundenwerte in Attributen). |
 | **Stromkosten heute** | `sensor.ostrom_stromkosten_heute` | `EUR` | Aufgelaufene Kosten heute (sobald Daten vorliegen). |
 | **Stromverbrauch heute** | `sensor.ostrom_stromverbrauch_heute` | `kWh` | Gemessener Verbrauch heute (sobald Daten vorliegen). |
 | **Zählerstand** | `sensor.ostrom_zahlerstand` | `kWh` | *(Standardmäßig deaktiviert, da Ostrom nur Intervall-kWh liefert).* |

@@ -399,6 +399,7 @@ class OstromAccruedCostSensor(OstromBaseSensor):
         return {
             "reine_verbrauchskosten_heute": self.coordinator.data.accrued_cost_today,
             "anteilige_grundgebuehr_heute": self.coordinator.data.daily_base_fee,
+            "anteilige_grundgebuehr_stunde_heute": self.coordinator.data.hourly_base_fee_today,
             "gesamtkosten_heute_inkl_grundgebuehr": self.coordinator.data.total_cost_today_with_base_fee,
         }
 
@@ -436,15 +437,19 @@ class OstromAccruedCostYesterdaySensor(OstromBaseSensor):
 
     @property
     def native_value(self) -> float | None:
-        return self.coordinator.data.accrued_cost_yesterday
+        return self.coordinator.data.total_cost_yesterday_with_base_fee
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "datum": self.coordinator.data.yesterday_date,
-            "reine_verbrauchskosten_gestern": self.coordinator.data.accrued_cost_yesterday,
-            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee,
             "gesamtkosten_gestern_inkl_grundgebuehr": self.coordinator.data.total_cost_yesterday_with_base_fee,
+            "reine_verbrauchskosten_gestern": self.coordinator.data.accrued_cost_yesterday,
+            "marktpreis_kosten_gestern": self.coordinator.data.market_cost_yesterday,
+            "abgaben_und_steuern_gestern": self.coordinator.data.tax_cost_yesterday,
+            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee_yesterday,
+            "anteilige_grundgebuehr_stunde": self.coordinator.data.hourly_base_fee_yesterday,
+            "stundenwerte": self.coordinator.data.hourly_breakdown_yesterday,
         }
 
 
@@ -469,6 +474,7 @@ class OstromConsumptionYesterdaySensor(OstromBaseSensor):
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "datum": self.coordinator.data.yesterday_date,
+            "stundenwerte": self.coordinator.data.hourly_breakdown_yesterday,
         }
 
 
@@ -487,15 +493,19 @@ class OstromAccruedCost48hSensor(OstromBaseSensor):
 
     @property
     def native_value(self) -> float | None:
-        return self.coordinator.data.accrued_cost_48h
+        return self.coordinator.data.total_cost_48h_with_base_fee
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "datum": self.coordinator.data.date_48h,
-            "reine_verbrauchskosten_vor_48h": self.coordinator.data.accrued_cost_48h,
-            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee,
             "gesamtkosten_vor_48h_inkl_grundgebuehr": self.coordinator.data.total_cost_48h_with_base_fee,
+            "reine_verbrauchskosten_vor_48h": self.coordinator.data.accrued_cost_48h,
+            "marktpreis_kosten_vor_48h": self.coordinator.data.market_cost_48h,
+            "abgaben_und_steuern_vor_48h": self.coordinator.data.tax_cost_48h,
+            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee_48h,
+            "anteilige_grundgebuehr_stunde": self.coordinator.data.hourly_base_fee_48h,
+            "stundenwerte": self.coordinator.data.hourly_breakdown_48h,
         }
 
 
@@ -520,6 +530,7 @@ class OstromConsumption48hSensor(OstromBaseSensor):
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "datum": self.coordinator.data.date_48h,
+            "stundenwerte": self.coordinator.data.hourly_breakdown_48h,
         }
 
 
