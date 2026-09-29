@@ -56,9 +56,13 @@ async def async_setup_entry(
             OstromPriceLevelSensor(coordinator, entry),
             OstromRankSensor(coordinator, entry),
 
-            # Verbrauch & Kosten
+            # Verbrauch & Kosten (Heute, Gestern, Vor 48h)
             OstromAccruedCostSensor(coordinator, entry),
             OstromConsumptionTodaySensor(coordinator, entry),
+            OstromAccruedCostYesterdaySensor(coordinator, entry),
+            OstromConsumptionYesterdaySensor(coordinator, entry),
+            OstromAccruedCost48hSensor(coordinator, entry),
+            OstromConsumption48hSensor(coordinator, entry),
             OstromMeterReadingSensor(coordinator, entry),
         ]
     )
@@ -415,6 +419,108 @@ class OstromConsumptionTodaySensor(OstromBaseSensor):
     @property
     def native_value(self) -> float:
         return self.coordinator.data.energy_consumption_today
+
+
+class OstromAccruedCostYesterdaySensor(OstromBaseSensor):
+    """Aufgelaufene Stromkosten von gestern (Vortag / T-1)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "EUR"
+    _attr_icon = "mdi:cash-clock"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromkosten gestern"
+        self._attr_unique_id = f"{self._entry_id}_accrued_cost_yesterday"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.accrued_cost_yesterday
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "datum": self.coordinator.data.yesterday_date,
+            "reine_verbrauchskosten_gestern": self.coordinator.data.accrued_cost_yesterday,
+            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee,
+            "gesamtkosten_gestern_inkl_grundgebuehr": self.coordinator.data.total_cost_yesterday_with_base_fee,
+        }
+
+
+class OstromConsumptionYesterdaySensor(OstromBaseSensor):
+    """Tatsächlich gemessener Stromverbrauch von gestern (Vortag / T-1)."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_icon = "mdi:chart-timeline-variant-shimmer"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromverbrauch gestern"
+        self._attr_unique_id = f"{self._entry_id}_energy_consumption_yesterday"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.energy_consumption_yesterday
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "datum": self.coordinator.data.yesterday_date,
+        }
+
+
+class OstromAccruedCost48hSensor(OstromBaseSensor):
+    """Aufgelaufene Stromkosten von vor 48 Stunden (vor 2 Tagen / T-2)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "EUR"
+    _attr_icon = "mdi:cash-clock"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromkosten vor 48h"
+        self._attr_unique_id = f"{self._entry_id}_accrued_cost_48h"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.accrued_cost_48h
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "datum": self.coordinator.data.date_48h,
+            "reine_verbrauchskosten_vor_48h": self.coordinator.data.accrued_cost_48h,
+            "anteilige_grundgebuehr_tag": self.coordinator.data.daily_base_fee,
+            "gesamtkosten_vor_48h_inkl_grundgebuehr": self.coordinator.data.total_cost_48h_with_base_fee,
+        }
+
+
+class OstromConsumption48hSensor(OstromBaseSensor):
+    """Tatsächlich gemessener Stromverbrauch von vor 48 Stunden (vor 2 Tagen / T-2)."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_icon = "mdi:chart-timeline-variant-shimmer"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromverbrauch vor 48h"
+        self._attr_unique_id = f"{self._entry_id}_energy_consumption_48h"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.energy_consumption_48h
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "datum": self.coordinator.data.date_48h,
+        }
 
 
 class OstromMeterReadingSensor(OstromBaseSensor):

@@ -34,11 +34,16 @@
       "min_tomorrow": {"name": "Lowest price tomorrow"},
       "lowest_price_time_tomorrow": {"name": "Lowest price time tomorrow"},
       "max_tomorrow": {"name": "Highest price tomorrow"},
+      "highest_price_time_tomorrow": {"name": "Highest price time tomorrow"},
       "monthly_base_fee": {"name": "Monthly base fee"},
       "price_level": {"name": "Price level"},
       "price_rank": {"name": "Price rank today"},
       "accrued_cost_today": {"name": "Electricity cost today"},
       "energy_consumption_today": {"name": "Electricity consumption today"},
+      "accrued_cost_yesterday": {"name": "Electricity cost yesterday"},
+      "energy_consumption_yesterday": {"name": "Electricity consumption yesterday"},
+      "accrued_cost_48h": {"name": "Electricity cost 48h ago"},
+      "energy_consumption_48h": {"name": "Electricity consumption 48h ago"},
       "meter_reading": {"name": "Meter reading"}
     }
   }

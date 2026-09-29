@@ -11,10 +11,14 @@ from custom_components.ostrom_custom.const import DOMAIN
 from custom_components.ostrom_custom.coordinator import OstromData
 from custom_components.ostrom_custom.sensor import (
     OstromAccruedCostSensor,
+    OstromAccruedCostYesterdaySensor,
+    OstromAccruedCost48hSensor,
     OstromAvgTodaySensor,
     OstromAvgTomorrowSensor,
     OstromBaseFeeSensor,
     OstromConsumptionTodaySensor,
+    OstromConsumptionYesterdaySensor,
+    OstromConsumption48hSensor,
     OstromCurrentPriceSensor,
     OstromHighestPriceTimeTodaySensor,
     OstromLowestPriceTimeTodaySensor,
@@ -66,6 +70,14 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
             accrued_cost_today=1.45,
             total_cost_today_with_base_fee=1.80,
             energy_consumption_today=4.8,
+            accrued_cost_yesterday=2.34,
+            total_cost_yesterday_with_base_fee=2.68,
+            energy_consumption_yesterday=7.5,
+            yesterday_date="2026-09-28",
+            accrued_cost_48h=3.10,
+            total_cost_48h_with_base_fee=3.45,
+            energy_consumption_48h=9.2,
+            date_48h="2026-09-27",
             prices_today=[{"timestamp": "2026-09-29T12:00:00", "price": 0.285}],
             prices_tomorrow=[{"timestamp": "2026-09-30T12:00:00", "price": 0.275}],
             forecast=[
@@ -82,7 +94,7 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
 
         await async_setup_entry(self.hass, self.entry, async_add_entities)
 
-        self.assertEqual(len(added_entities), 18)
+        self.assertEqual(len(added_entities), 22)
         entity_classes = [e.__class__.__name__ for e in added_entities]
         self.assertIn("OstromCurrentPriceSensor", entity_classes)
         self.assertIn("OstromNextHourPriceSensor", entity_classes)
@@ -96,6 +108,10 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
         self.assertIn("OstromLowestPriceTimeTomorrowSensor", entity_classes)
         self.assertIn("OstromMaxTomorrowSensor", entity_classes)
         self.assertIn("OstromHighestPriceTimeTomorrowSensor", entity_classes)
+        self.assertIn("OstromAccruedCostYesterdaySensor", entity_classes)
+        self.assertIn("OstromConsumptionYesterdaySensor", entity_classes)
+        self.assertIn("OstromAccruedCost48hSensor", entity_classes)
+        self.assertIn("OstromConsumption48hSensor", entity_classes)
 
     def test_forecast_and_future_sensors(self) -> None:
         sensor_current = OstromCurrentPriceSensor(self.coordinator, self.entry)
@@ -117,7 +133,12 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
         sensor_max_tomorrow_time = OstromHighestPriceTimeTomorrowSensor(self.coordinator, self.entry)
         self.assertEqual(sensor_max_tomorrow_time.native_value, "18:00")
 
+        sensor_cost_yesterday = OstromAccruedCostYesterdaySensor(self.coordinator, self.entry)
+        self.assertEqual(sensor_cost_yesterday.native_value, 2.34)
+
+        sensor_kwh_48h = OstromConsumption48hSensor(self.coordinator, self.entry)
+        self.assertEqual(sensor_kwh_48h.native_value, 9.2)
+
 
 if __name__ == "__main__":
     unittest.main()
-    

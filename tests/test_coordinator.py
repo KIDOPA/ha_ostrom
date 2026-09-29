@@ -56,9 +56,27 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
                 }
             )
 
+        # Historische Spotpreise für gestern (28.) und 48h (27.)
+        spot_data.append(
+            {
+                "date": "2026-09-28T10:00:00.000Z",
+                "grossKwhPrice": 12.0,
+                "grossKwhTaxAndLevies": 10.0,
+            }
+        )
+        spot_data.append(
+            {
+                "date": "2026-09-27T10:00:00.000Z",
+                "grossKwhPrice": 14.0,
+                "grossKwhTaxAndLevies": 10.0,
+            }
+        )
+
         consumption_data = [
             {"date": "2026-09-29T10:00:00.000Z", "kWh": 1.5},
             {"date": "2026-09-29T11:00:00.000Z", "kWh": 2.0},
+            {"date": "2026-09-28T10:00:00.000Z", "kWh": 5.0},
+            {"date": "2026-09-27T10:00:00.000Z", "kWh": 10.0},
         ]
 
         data: OstromData = self.coordinator._process_all(
@@ -93,6 +111,16 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(data.energy_consumption_today, 3.5, places=3)
         self.assertAlmostEqual(data.accrued_cost_today, 1.07, places=2)
         self.assertAlmostEqual(data.total_cost_today_with_base_fee, 1.42, places=2)
+
+        # Gestern
+        self.assertAlmostEqual(data.energy_consumption_yesterday, 5.0, places=3)
+        self.assertAlmostEqual(data.accrued_cost_yesterday, 1.10, places=2)
+        self.assertEqual(data.yesterday_date, "2026-09-28")
+
+        # Vor 48h
+        self.assertAlmostEqual(data.energy_consumption_48h, 10.0, places=3)
+        self.assertAlmostEqual(data.accrued_cost_48h, 2.40, places=2)
+        self.assertEqual(data.date_48h, "2026-09-27")
 
 
 if __name__ == "__main__":

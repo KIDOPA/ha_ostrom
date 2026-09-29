@@ -60,11 +60,23 @@ class OstromData:
     price_level: str = "normal"
     rank: int | None = None
 
-    # Kosten & Verbrauch
+    # Kosten & Verbrauch heute
     accrued_cost_today: float = 0.0  # Reine Verbrauchskosten heute (EUR)
     total_cost_today_with_base_fee: float = 0.0  # Verbrauchskosten + anteilige Grundgebühr heute
     energy_consumption_today: float = 0.0  # Gemessener Verbrauch heute (kWh)
     meter_reading: float | None = None
+
+    # Kosten & Verbrauch gestern (Vortag / T-1)
+    accrued_cost_yesterday: float | None = None
+    total_cost_yesterday_with_base_fee: float | None = None
+    energy_consumption_yesterday: float | None = None
+    yesterday_date: str | None = None
+
+    # Kosten & Verbrauch vor 48h (vor 2 Tagen / T-2)
+    accrued_cost_48h: float | None = None
+    total_cost_48h_with_base_fee: float | None = None
+    energy_consumption_48h: float | None = None
+    date_48h: str | None = None
 
     # Verläufe & Forecast (ApexCharts / Energy Dashboard kompatibel)
     prices_today: list[dict[str, Any]] = field(default_factory=list)
@@ -124,6 +136,9 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         end_of_tomorrow = datetime.combine(
             local_now.date() + timedelta(days=2), time.min, tzinfo=local_tz
         )
+        start_of_past = datetime.combine(
+            local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
+        )
 
         try:
             spot_data = await self.api.async_get_spot_prices(start_of_day, end_of_tomorrow)
@@ -136,32 +151,45 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         except OstromError as err:
             raise UpdateFailed(f"Ostrom API Fehler: {err}") from err
 
-        consumption_data = await self._async_fetch_consumption(now_utc)
+        # Historische Spotpreise für vor 48h und gestern abrufen (für Kostenberechnung)
+        all_spot_data = list(spot_data)
+        try:
+            past_spot_data = await self.api.async_get_spot_prices(start_of_past, start_of_day)
+            all_spot_data = past_spot_data + spot_data
+        except Exception as err:
+            _LOGGER.debug("Historische Spotpreise konnten nicht geladen werden: %s", err)
 
-        return self._process_all(spot_data, consumption_data, local_tz, now_utc)
+        consumption_data = await self._async_fetch_consumption(local_now, local_tz)
+
+        return self._process_all(all_spot_data, consumption_data, local_tz, now_utc)
 
     async def _async_fetch_consumption(
-        self, now_utc: datetime
+        self, local_now: datetime, local_tz: ZoneInfo | timezone
     ) -> list[dict[str, Any]]:
         """Ermittelt den Vertrag und ruft Smart-Meter-Verbrauchsdaten ab."""
         try:
             if not self.contract_id:
                 contracts = await self.api.async_get_contracts()
-                active_contracts = [
-                    c for c in contracts if c.get("status") == "ACTIVE"
-                ]
-                if len(active_contracts) == 1:
-                    self.contract_id = active_contracts[0]["id"]
-                elif len(active_contracts) > 1:
-                    _LOGGER.warning(
-                        "Mehrere aktive Ostrom-Verträge gefunden; Verbrauch wird ohne "
-                        "eindeutige Vertragsauswahl übersprungen"
-                    )
+                if contracts:
+                    active = [
+                        c for c in contracts
+                        if str(c.get("status", "")).upper() in ("ACTIVE", "IN_DELIVERY", "IN_SUPPLY", "CONFIRMED")
+                    ]
+                    if active:
+                        self.contract_id = active[0]["id"]
+                    else:
+                        self.contract_id = contracts[0]["id"]
+                    _LOGGER.info("Ostrom Vertrag für Verbrauch erkannt: ID %s", self.contract_id)
 
             if self.contract_id:
-                start_consumption = now_utc - timedelta(days=2)
+                start_consumption = datetime.combine(
+                    local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
+                )
+                end_consumption = datetime.combine(
+                    local_now.date() + timedelta(days=1), time.min, tzinfo=local_tz
+                )
                 return await self.api.async_get_energy_consumption(
-                    self.contract_id, start_consumption, now_utc
+                    self.contract_id, start_consumption, end_consumption
                 )
         except Exception as err:
             _LOGGER.debug("Smart-Meter-Verbrauchsdaten konnten nicht geladen werden: %s", err)
@@ -200,7 +228,7 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         monthly_grid_fee = 0.0
 
         for item in spot_data:
-            dt = self._parse_api_date(item["date"])
+            dt = self._parse_api_date(item["date"]).replace(minute=0, second=0, microsecond=0)
             gross_kwh = float(item.get("grossKwhPrice", 0.0))
             gross_tax = float(item.get("grossKwhTaxAndLevies", 0.0))
             net_kwh = float(item.get("netKwhPrice", 0.0))
@@ -232,7 +260,8 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
                 "net_tax_and_levies": round(net_tax / 100.0, 5),
             }
 
-            forecast.append(entry_dict)
+            if local_dt.date() >= today:
+                forecast.append(entry_dict)
 
             if local_dt.date() == today:
                 prices_today.append(entry_dict)
@@ -297,19 +326,67 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         monthly_base_total = round(monthly_ostrom_fee + monthly_grid_fee, 2)
         daily_base_fee = round((monthly_base_total * 12) / 365.0, 3)
 
-        accrued_cost_today = 0.0
-        energy_consumption_today = 0.0
-        for item in consumption_data:
-            consumption_dt = self._parse_api_date(item["date"])
-            if consumption_dt.astimezone(local_tz).date() == today:
-                kwh = float(item.get("kWh", 0.0))
-                energy_consumption_today += kwh
-                unit_price = prices_by_interval.get(consumption_dt)
-                if unit_price is not None:
-                    accrued_cost_today += kwh * unit_price
+        yesterday = today - timedelta(days=1)
+        two_days_ago = today - timedelta(days=2)
 
-        accrued_cost_today = round(accrued_cost_today, 2)
+        has_today = False
+        kwh_today = 0.0
+        cost_today = 0.0
+
+        has_yesterday = False
+        kwh_yesterday = 0.0
+        cost_yesterday = 0.0
+
+        has_48h = False
+        kwh_48h = 0.0
+        cost_48h = 0.0
+
+        for item in consumption_data:
+            consumption_dt = self._parse_api_date(item["date"]).replace(
+                minute=0, second=0, microsecond=0
+            )
+            item_date = consumption_dt.astimezone(local_tz).date()
+            kwh = float(item.get("kWh", item.get("kwh", item.get("consumptionKwh", 0.0))))
+            unit_price = prices_by_interval.get(consumption_dt)
+
+            if item_date == today:
+                has_today = True
+                kwh_today += kwh
+                if unit_price is not None:
+                    cost_today += kwh * unit_price
+            elif item_date == yesterday:
+                has_yesterday = True
+                kwh_yesterday += kwh
+                if unit_price is not None:
+                    cost_yesterday += kwh * unit_price
+            elif item_date == two_days_ago:
+                has_48h = True
+                kwh_48h += kwh
+                if unit_price is not None:
+                    cost_48h += kwh * unit_price
+
+        # Kosten heute
+        accrued_cost_today = round(cost_today, 2)
         total_cost_today_with_base_fee = round(accrued_cost_today + daily_base_fee, 2)
+        energy_consumption_today = round(kwh_today, 3)
+
+        # Kosten & Verbrauch gestern (Vortag / T-1)
+        accrued_cost_yesterday = round(cost_yesterday, 2) if has_yesterday else None
+        total_cost_yesterday_with_base_fee = (
+            round(cost_yesterday + daily_base_fee, 2) if has_yesterday else None
+        )
+        energy_consumption_yesterday = (
+            round(kwh_yesterday, 3) if has_yesterday else None
+        )
+
+        # Kosten & Verbrauch vor 48h (vor 2 Tagen / T-2)
+        accrued_cost_48h = round(cost_48h, 2) if has_48h else None
+        total_cost_48h_with_base_fee = (
+            round(cost_48h + daily_base_fee, 2) if has_48h else None
+        )
+        energy_consumption_48h = (
+            round(kwh_48h, 3) if has_48h else None
+        )
 
         return OstromData(
             current_price=current_price,
@@ -335,7 +412,15 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             meter_reading=None,
             accrued_cost_today=accrued_cost_today,
             total_cost_today_with_base_fee=total_cost_today_with_base_fee,
-            energy_consumption_today=round(energy_consumption_today, 3),
+            energy_consumption_today=energy_consumption_today,
+            accrued_cost_yesterday=accrued_cost_yesterday,
+            total_cost_yesterday_with_base_fee=total_cost_yesterday_with_base_fee,
+            energy_consumption_yesterday=energy_consumption_yesterday,
+            yesterday_date=str(yesterday),
+            accrued_cost_48h=accrued_cost_48h,
+            total_cost_48h_with_base_fee=total_cost_48h_with_base_fee,
+            energy_consumption_48h=energy_consumption_48h,
+            date_48h=str(two_days_ago),
             prices_today=prices_today,
             prices_tomorrow=prices_tomorrow,
             forecast=forecast,

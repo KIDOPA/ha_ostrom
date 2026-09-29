@@ -26,7 +26,7 @@
 
 ---
 
-## 📋 Übersicht der 18 Sensoren
+## 📋 Übersicht der 22 Sensoren
 
 Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 
@@ -47,9 +47,26 @@ Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 | **Monatliche Grundgebühr** | `sensor.ostrom_monatliche_grundgebuhr` | `EUR` | Feste monatliche Gebühren (Ostrom + Netzentgelte). |
 | **Preisstufe** | `sensor.ostrom_preisstufe` | Text | `sehr_guenstig`, `guenstig`, `normal`, `teuer`, `sehr_teuer`. |
 | **Preis Rang heute** | `sensor.ostrom_preis_rang_heute` | Zahl | Rang der aktuellen Stunde (1 = billigste Stunde, 24 = teuerste). |
-| **Stromkosten heute** | `sensor.ostrom_stromkosten_heute` | `EUR` | Berechnete Gesamtkosten für den heutigen Stromverbrauch. |
-| **Stromverbrauch heute** | `sensor.ostrom_stromverbrauch_heute` | `kWh` | Vom Smart-Meter gemessener Tagesverbrauch. |
+| **Stromkosten gestern** | `sensor.ostrom_stromkosten_gestern` | `EUR` | Echte, abgerechnete Stromkosten für den gestrigen Tag (Vortag). |
+| **Stromverbrauch gestern** | `sensor.ostrom_stromverbrauch_gestern` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von gestern. |
+| **Stromkosten vor 48h** | `sensor.ostrom_stromkosten_vor_48h` | `EUR` | Echte, abgerechnete Stromkosten von vor 48 Stunden (vor 2 Tagen). |
+| **Stromverbrauch vor 48h** | `sensor.ostrom_stromverbrauch_vor_48h` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von vor 48 Stunden. |
+| **Stromkosten heute** | `sensor.ostrom_stromkosten_heute` | `EUR` | Aufgelaufene Kosten heute (sobald Daten vorliegen). |
+| **Stromverbrauch heute** | `sensor.ostrom_stromverbrauch_heute` | `kWh` | Gemessener Verbrauch heute (sobald Daten vorliegen). |
 | **Zählerstand** | `sensor.ostrom_zahlerstand` | `kWh` | *(Standardmäßig deaktiviert, da Ostrom nur Intervall-kWh liefert).* |
+
+---
+
+## ⚡ Wichtiger Hinweis zu Smart-Meter-Verbrauchsdaten
+
+> [!TIP]
+> **Warum gibt es Sensoren für „gestern“ und „vor 48h“?**
+> Deutsche Messstellenbetreiber und Smart-Meter-Gateways übermitteln Messdaten nicht in Echtzeit an die Stromanbieter, sondern gebündelt mit **24 bis 48 Stunden Verzögerung**.
+>
+> In der Ostrom-App und -API stehen die verifizierten Verbrauchs- und Abrechnungsdaten daher immer für den **Vortag (gestern)** bzw. sicher für **vor 48 Stunden** bereit. Die Sensoren berechnen stundengenau den jeweiligen Arbeitspreis multipliziert mit deinem gemessenen Verbrauch für diese Tage.
+>
+> **Tipp für Live-Kosten in Echtzeit:**  
+> Möchtest du deine Stromkosten sekundengenau und ohne 48h Verzögerung verfolgen, binde deinen Stromzähler (z. B. via IR-Lesekopf / Shelly 3EM) in das offizielle **Home Assistant Energie-Dashboard** ein und wähle dort `sensor.ostrom_aktueller_strompreis` als dynamische Preisentität!
 
 ---
 
