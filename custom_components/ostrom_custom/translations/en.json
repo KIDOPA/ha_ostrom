@@ -34,7 +34,6 @@
       "min_tomorrow": {"name": "Lowest price tomorrow"},
       "lowest_price_time_tomorrow": {"name": "Lowest price time tomorrow"},
       "max_tomorrow": {"name": "Highest price tomorrow"},
-      "highest_price_time_tomorrow": {"name": "Highest price time tomorrow"},
       "monthly_base_fee": {"name": "Monthly base fee"},
       "price_level": {"name": "Price level"},
       "price_rank": {"name": "Price rank today"},

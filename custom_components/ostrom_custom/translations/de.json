@@ -34,7 +34,6 @@
       "min_tomorrow": {"name": "Günstigster Preis morgen"},
       "lowest_price_time_tomorrow": {"name": "Günstigste Uhrzeit morgen"},
       "max_tomorrow": {"name": "Höchster Preis morgen"},
-      "highest_price_time_tomorrow": {"name": "Teuerste Uhrzeit morgen"},
       "monthly_base_fee": {"name": "Monatliche Grundgebühr"},
       "price_level": {"name": "Preisstufe"},
       "price_rank": {"name": "Preis Rang heute"},

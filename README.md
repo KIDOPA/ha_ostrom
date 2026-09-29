@@ -1,41 +1,77 @@
-# Ostrom Custom Integration für Home Assistant
+# ⚡ Ostrom Integration für Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
-[![GitHub release](https://img.shields.io/badge/release-v1.2.0-blue.svg)](https://github.com/KIDOPA/ha_ostrom)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/default)
+[![GitHub release](https://img.shields.io/github/v/release/KIDOPA/ha_ostrom?style=for-the-badge&color=blue)](https://github.com/KIDOPA/ha_ostrom/releases)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blueviolet?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-Home Assistant Integration für dynamische Stromtarife von **[Ostrom](https://ostrom.de)** über die offizielle **Ostrom Developer API**.
-
-## Highlights & Sensoren
-
-- ⚡ **Aktueller Strompreis**: Stündlicher Gesamt-Arbeitspreis in EUR/kWh inklusive Steuern, gesetzlicher Umlagen und arbeitsbezogener Netzentgelte.
-- 🔮 **Preisvorschau in die Zukunft**:
-  - `Preis nächste Stunde` (EUR/kWh)
-  - `Günstigster Preis heute` & `Günstigste Uhrzeit heute` (z. B. `14:00` für Spülmaschine/EV)
-  - `Höchster Preis heute` & `Teuerste Uhrzeit heute`
-  - `Durchschnittspreis heute`
-  - `Günstigster Preis morgen`, `Höchster Preis morgen` & `Durchschnittspreis morgen` (sobald nachmittags verfügbar)
-  - `forecast`-Attribut mit stündlichen Start- und Endzeitstempeln für ApexCharts und Lovelace
-- 🏷️ **Preisstufe & Rang**:
-  - Preisstufe: `sehr_guenstig`, `guenstig`, `normal`, `teuer`, `sehr_teuer`.
-  - Preis-Rang heute: 1 (günstigste Stunde des Tages) bis 24.
-- 💶 **Fixkosten-Transparenz**:
-  - `Monatliche Grundgebühr`: Ostrom-Grundgebühr + Grundpreis der Netzentgelte.
-  - Tägliche anteilige Grundgebühr.
-- 🔌 **Smart Meter & Verbrauchskosten**:
-  - `Stromkosten heute` (aufgelaufene Verbrauchskosten sowie Attribut `gesamtkosten_heute_inkl_grundgebuehr`).
-  - `Stromverbrauch heute` (kWh).
+> Die moderne, zuverlässige Home Assistant Integration für deinen dynamischen Stromtarif von **[Ostrom](https://ostrom.de)** über die offizielle **Ostrom Developer API**.
+>
+> 💡 **Echte Endkundenpreise**: Zeigt nicht nur den nackten Börsenpreis, sondern berechnet den **vollständigen Brutto-Arbeitspreis** inklusive aller Steuern, Umlagen und regionalen Netzentgelte.
 
 ---
 
-## Preisverlaufs-Diagramm im Dashboard (ApexCharts)
+## 🌟 Highlights auf einen Blick
 
-Kopiere folgenden Code in eine **Manuelle Karte** in deinem Dashboard (benötigt [ApexCharts Card](https://github.com/RomRider/apexcharts-card)):
+- 💶 **Echte Gesamtkosten (Brutto)**: Cent-genauer Arbeitspreis (`EUR/kWh`) inklusive Börsenpreis, Steuern (19% MwSt.), Konzessionsabgaben, KWKG-Umlage, Offshore-Netzumlage und regionaler Netzentgelte deines Verteilnetzbetreibers.
+- 🔮 **48h Day-Ahead Preisvorschau**: Vollständiges `forecast`-Attribut (kompatibel mit [ApexCharts Card](https://github.com/RomRider/apexcharts-card)), das die Preise von heute und morgen stundengenau abbildet.
+- 🕒 **Perfekt für Automationen**:
+  - `Preis nächste Stunde`: Reagiere schon 60 Minuten vorher auf Preissprünge.
+  - `Günstigste Uhrzeit heute` & `Günstigste Uhrzeit morgen`: Starte Großverbraucher exakt zum optimalen Zeitpunkt.
+  - `Preis Rang heute` (1 bis 24): Schalte Geräte ein, wenn die Stunde zu den X günstigsten des Tages gehört.
+  - `Preisstufe`: Sofortige Einordnung in `sehr_guenstig`, `guenstig`, `normal`, `teuer` oder `sehr_teuer`.
+- 📊 **Transparente Fixkosten**: Exakte Aufschlüsselung der monatlichen Grundgebühr (Ostrom-Gebühr + Grundpreis des Netzbetreibers) sowie tägliche anteilige Kosten.
+- ⚡ **Smart Meter & Verbrauchskosten**: Verfolgung des stündlichen Verbrauchs und der aufgelaufenen Stromkosten für den heutigen Tag (bei Nutzung eines Smart-Meters wie Ostrom Pulse).
+- 🔒 **Sicher & Modern**: Vollständiger OAuth2 Client-Credentials Flow mit automatischem Token-Refresh, typed DataUpdateCoordinator und asynchronem `aiohttp`.
+
+---
+
+## 📋 Übersicht der 18 Sensoren
+
+Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
+
+| Sensor | Entitäts-ID | Einheit | Beschreibung |
+| :--- | :--- | :---: | :--- |
+| **Aktueller Strompreis** | `sensor.ostrom_aktueller_strompreis` | `EUR/kWh` | Brutto-Gesamtarbeitspreis der aktuellen Stunde. Enthält das `forecast`-Array. |
+| **Preis nächste Stunde** | `sensor.ostrom_preis_nachste_stunde` | `EUR/kWh` | Preis der direkt folgenden Stunde. |
+| **Günstigster Preis heute** | `sensor.ostrom_gunstigster_preis_heute` | `EUR/kWh` | Tiefstpreis des aktuellen Tages. |
+| **Günstigste Uhrzeit heute** | `sensor.ostrom_gunstigste_uhrzeit_heute` | `HH:MM` | Uhrzeit des Tiefstpreises heute (z. B. `13:00`). |
+| **Höchster Preis heute** | `sensor.ostrom_hochster_preis_heute` | `EUR/kWh` | Spitzenpreis des heutigen Tages. |
+| **Teuerste Uhrzeit heute** | `sensor.ostrom_teuerste_uhrzeit_heute` | `HH:MM` | Uhrzeit des Spitzenpreises heute (z. B. `18:00`). |
+| **Durchschnittspreis heute** | `sensor.ostrom_durchschnittspreis_heute` | `EUR/kWh` | Arithmetischer Mittelwert aller 24 Stunden heute. |
+| **Günstigster Preis morgen** | `sensor.ostrom_gunstigster_preis_morgen` | `EUR/kWh` | Tiefstpreis für den morgigen Tag *(ab ~13:30 Uhr)*. |
+| **Günstigste Uhrzeit morgen** | `sensor.ostrom_gunstigste_uhrzeit_morgen` | `HH:MM` | Uhrzeit des Tiefstpreises morgen *(ab ~13:30 Uhr)*. |
+| **Höchster Preis morgen** | `sensor.ostrom_hochster_preis_morgen` | `EUR/kWh` | Spitzenpreis für morgen *(ab ~13:30 Uhr)*. |
+| **Teuerste Uhrzeit morgen** | `sensor.ostrom_teuerste_uhrzeit_morgen` | `HH:MM` | Uhrzeit des Spitzenpreises morgen *(ab ~13:30 Uhr)*. |
+| **Durchschnittspreis morgen** | `sensor.ostrom_durchschnittspreis_morgen` | `EUR/kWh` | Tagesdurchschnitt für morgen *(ab ~13:30 Uhr)*. |
+| **Monatliche Grundgebühr** | `sensor.ostrom_monatliche_grundgebuhr` | `EUR` | Feste monatliche Gebühren (Ostrom + Netzentgelte). |
+| **Preisstufe** | `sensor.ostrom_preisstufe` | Text | `sehr_guenstig`, `guenstig`, `normal`, `teuer`, `sehr_teuer`. |
+| **Preis Rang heute** | `sensor.ostrom_preis_rang_heute` | Zahl | Rang der aktuellen Stunde (1 = billigste Stunde, 24 = teuerste). |
+| **Stromkosten heute** | `sensor.ostrom_stromkosten_heute` | `EUR` | Berechnete Gesamtkosten für den heutigen Stromverbrauch. |
+| **Stromverbrauch heute** | `sensor.ostrom_stromverbrauch_heute` | `kWh` | Vom Smart-Meter gemessener Tagesverbrauch. |
+| **Zählerstand** | `sensor.ostrom_zahlerstand` | `kWh` | *(Standardmäßig deaktiviert, da Ostrom nur Intervall-kWh liefert).* |
+
+---
+
+## ⏰ Wichtiger Hinweis zu den „Morgen“-Sensoren
+
+> [!NOTE]
+> **Warum stehen die morgigen Sensoren vormittags auf „Unbekannt“?**
+> Die EPEX Spot Strombörse versteigert den Strom für den nächsten Tag täglich um 12:00 Uhr mittags in der sogenannten **Day-Ahead-Auktion**.
+> 
+> Die offiziellen Preise für morgen werden täglich zwischen **13:00 und 14:00 Uhr** veröffentlicht. Vor diesem Zeitpunkt existieren die Preise schlichtweg noch nicht. Sobald die Daten nachmittags verfügbar sind, füllen sich alle Sensoren für morgen automatisch mit Werten!
+
+---
+
+## 📊 Dashboard-Visualisierung mit ApexCharts
+
+Mit der beliebten [ApexCharts Card](https://github.com/RomRider/apexcharts-card) (über HACS installierbar) erstellst du ein interaktives 48-Stunden-Balkendiagramm mit automatischer Farbcodierung:
 
 ```yaml
 type: custom:apexcharts-card
 header:
   show: true
-  title: Ostrom Strompreis (Heute & Morgen)
+  title: Ostrom Strompreis (48h Vorschau)
   show_states: true
   colorize_states: true
 graph_span: 48h
@@ -48,15 +84,187 @@ series:
   - entity: sensor.ostrom_aktueller_strompreis
     name: Strompreis
     type: column
+    unit: ' €/kWh'
+    float_precision: 4
     data_generator: |
       return entity.attributes.forecast.map((entry) => {
         return [new Date(entry.start).getTime(), entry.price];
       });
     color_threshold:
       - value: 0.20
-        color: '#2b908f'
-      - value: 0.30
-        color: '#90ee7e'
-      - value: 0.38
-        color: '#f45b5b'
+        color: '#2ecc71' # Sehr günstig (Grün)
+      - value: 0.28
+        color: '#f1c40f' # Normal (Gelb)
+      - value: 0.35
+        color: '#e67e22' # Teuer (Orange)
+      - value: 0.40
+        color: '#e74c3c' # Sehr teuer (Rot)
 ```
+
+---
+
+## 🤖 Praktische Automations-Beispiele
+
+### 1. Waschmaschine / Spülmaschine zur günstigsten Uhrzeit starten
+Starte einen Zwischenstecker genau zur günstigsten Stunde des Tages:
+
+```yaml
+alias: "Ostrom: Großverbraucher zur günstigsten Stunde starten"
+description: "Aktiviert den Zwischenstecker, sobald die günstigste Uhrzeit heute erreicht ist."
+trigger:
+  - platform: template
+    value_template: >
+      {{ now().strftime('%H:%M') == states('sensor.ostrom_gunstigste_uhrzeit_heute') }}
+condition: []
+action:
+  - service: switch.turn_on
+    target:
+      entity_id: switch.waschmaschine_steckdose
+  - service: notify.persistent_notification
+    data:
+      title: "⚡ Günstigster Strompreis erreicht!"
+      message: >
+        Die günstigste Stunde hat begonnen! Aktueller Preis:
+        {{ states('sensor.ostrom_aktueller_strompreis') }} €/kWh.
+mode: single
+```
+
+---
+
+### 2. E-Auto oder Heimspeicher in den TOP 3 günstigsten Stunden laden
+Nutze den Sensor `sensor.ostrom_preis_rang_heute`, um Ladestationen oder Batteriespeicher gezielt in den 3 billigsten Stunden des Tages freizugeben:
+
+```yaml
+alias: "Ostrom: Wallbox in Top-3 Stunden aktivieren"
+description: "Schaltet die Wallbox ein, wenn die Stunde zu den 3 günstigsten des Tages gehört."
+trigger:
+  - platform: state
+    entity_id: sensor.ostrom_preis_rang_heute
+condition:
+  - condition: numeric_state
+    entity_id: sensor.ostrom_preis_rang_heute
+    below: 4 # Rang 1, 2 oder 3
+action:
+  - service: switch.turn_on
+    target:
+      entity_id: switch.wallbox_freigabe
+mode: single
+```
+
+---
+
+### 3. Spitzenpreis-Warnung: Wärmepumpe / Heimspeicher-Entladung steuern
+Verhindere teuren Netzbezug, wenn der Strompreis in die Stufe `sehr_teuer` schlägt:
+
+```yaml
+alias: "Ostrom: Spitzenpreis-Schutz"
+description: "Sendet Warnung und schaltet energieintensive Geräte ab, wenn Strom sehr teuer ist."
+trigger:
+  - platform: state
+    entity_id: sensor.ostrom_preisstufe
+    to: "sehr_teuer"
+action:
+  - service: notify.notify
+    data:
+      title: "⚠️ Hoher Strompreis!"
+      message: >
+        Achtung! Der Strompreis liegt aktuell bei {{ states('sensor.ostrom_aktueller_strompreis') }} €/kWh.
+        Bitte keine Großverbraucher einschalten.
+mode: single
+```
+
+---
+
+### 4. Tägliche Push-Benachrichtigung um 14:00 Uhr mit morgigen Preisen
+Erhalte jeden Nachmittag nach Veröffentlichung der Börsenpreise eine Zusammenfassung für morgen auf dein Smartphone:
+
+```yaml
+alias: "Ostrom: Preisvorschau für morgen um 14:00 Uhr"
+trigger:
+  - platform: time
+    at: "14:00:00"
+condition:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: sensor.ostrom_gunstigster_preis_morgen
+        state: "unknown"
+action:
+  - service: notify.notify
+    data:
+      title: "⚡ Strompreis-Vorschau für morgen"
+      message: >
+        Günstigste Zeit: {{ states('sensor.ostrom_gunstigste_uhrzeit_morgen') }} Uhr ({{ states('sensor.ostrom_gunstigster_preis_morgen') }} €/kWh).
+        Höchster Preis: {{ states('sensor.ostrom_hochster_preis_morgen') }} €/kWh um {{ states('sensor.ostrom_teuerste_uhrzeit_morgen') }} Uhr.
+        Durchschnitt: {{ states('sensor.ostrom_durchschnittspreis_morgen') }} €/kWh.
+```
+
+---
+
+## 🚀 Installation & Einrichtung
+
+### Methode 1: Über HACS (Empfohlen)
+
+1. Öffne **HACS** in Home Assistant.
+2. Gehe auf **Integrationen** und klicke oben rechts auf das Dreipunkt-Menü ⋮ → **Benutzerdefinierte Repositories**.
+3. Trage folgende URL ein:
+   ```text
+   https://github.com/KIDOPA/ha_ostrom
+   ```
+   Kategorie: **Integration**.
+4. Klicke auf **Hinzufügen**, suche nach **Ostrom** und klicke auf **Herunterladen**.
+5. Starte Home Assistant neu (*Entwicklerwerkzeuge → Neu starten*).
+
+### Methode 2: Manuelle Installation
+
+Kopiere den Ordner `custom_components/ostrom_custom` in das Verzeichnis `custom_components/` deiner Home Assistant Installation und starte Home Assistant neu.
+
+---
+
+## 🔑 Konfiguration
+
+1. Gehe in Home Assistant zu **Einstellungen** → **Geräte & Dienste** → **Integration hinzufügen**.
+2. Suche nach **Ostrom**.
+3. Gib deine Daten ein:
+   - **Client ID**: Erhältst du im [Ostrom Developer Portal](https://developers.ostrom.de/)
+   - **Client Secret**: Dein API-Geheimnis
+   - **Postleitzahl**: Deine Lieferadresse (zur exakten Ermittlung der Netzentgelte)
+4. Klicke auf **Absenden**. Fertig!
+
+---
+
+## ❓ Häufige Fragen (FAQ)
+
+<details>
+<summary><b>Muss ich einen Ostrom Pulse oder Smart Meter besitzen?</b></summary>
+Nein! Auch ohne Smart-Meter liefert die Ostrom API stündliche Börsen- und Arbeitspreise, Vorhersagen, Rang-Metriken und Grundgebühren für deine Postleitzahl. Lediglich die Sensoren für Live-Verbrauch und Verbrauchskosten bleiben ohne Smart Meter inaktiv.
+</details>
+
+<details>
+<summary><b>Sind die angezeigten Preise Brutto oder Netto?</b></summary>
+Alle Preise in dieser Integration sind <b>echte Brutto-Preise</b> inklusive 19% Mehrwertsteuer, aller gesetzlichen Steuern & Umlagen sowie der variablen Netzentgelte deines örtlichen Verteilnetzbetreibers.
+</details>
+
+<details>
+<summary><b>Wie oft werden die Daten aktualisiert?</b></summary>
+Die Integration aktualisiert sich vollautomatisch alle 30 Minuten und berechnet zur vollen Stunde die aktuellen Preis-Slots neu.
+</details>
+
+---
+
+## ☕ Unterstütze dieses Projekt
+
+Die Entwicklung und Pflege dieser Integration erfordert kontinuierliche Arbeit, Tests und Anpassungen an neue Home Assistant Versionen und API-Änderungen. 
+
+Wenn dir diese Integration hilft, bares Geld bei deinen Stromkosten zu sparen oder deine Automationen zu optimieren, freue ich mich riesig über eine kleine Unterstützung auf einen Kaffee:
+
+[![PayPal Spenden](https://img.shields.io/badge/PayPal-Spenden-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/DEIN_PAYPAL_BENUTZERNAME)
+
+👉 **[Hier per PayPal spenden](https://paypal.me/DEIN_PAYPAL_BENUTZERNAME)** *(Ersetze den Link im Profil einfach durch deinen PayPal.me-Namen)*
+
+---
+
+### Lizenz & Haftungsausschluss
+
+Dieses Projekt steht unter der [MIT Lizenz](LICENSE).  
+*Hinweis: Dies ist eine inoffizielle Community-Integration und steht in keiner direkten geschäftlichen Verbindung zur Ostrom Energy GmbH.*
