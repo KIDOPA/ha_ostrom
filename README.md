@@ -258,9 +258,9 @@ Die Entwicklung und Pflege dieser Integration erfordert kontinuierliche Arbeit, 
 
 Wenn dir diese Integration hilft, bares Geld bei deinen Stromkosten zu sparen oder deine Automationen zu optimieren, freue ich mich riesig über eine kleine Unterstützung auf einen Kaffee:
 
-[![PayPal Spenden](https://img.shields.io/badge/PayPal-Spenden-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/DEIN_PAYPAL_BENUTZERNAME)
+[![PayPal Spenden](https://img.shields.io/badge/PayPal-Spenden-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/kidopafotografie)
 
-👉 **[Hier per PayPal spenden](https://paypal.me/DEIN_PAYPAL_BENUTZERNAME)** *(Ersetze den Link im Profil einfach durch deinen PayPal.me-Namen)*
+👉 **[Hier per PayPal spenden](https://paypal.me/kidopafotografie)**
 
 ---
 
@@ -268,3 +268,4 @@ Wenn dir diese Integration hilft, bares Geld bei deinen Stromkosten zu sparen od
 
 Dieses Projekt steht unter der [MIT Lizenz](LICENSE).  
 *Hinweis: Dies ist eine inoffizielle Community-Integration und steht in keiner direkten geschäftlichen Verbindung zur Ostrom Energy GmbH.*
+
