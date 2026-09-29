@@ -162,8 +162,54 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(data.accrued_cost_yesterday, 3.61, places=2)
         self.assertAlmostEqual(data.total_cost_yesterday_with_base_fee, 4.11, places=2)
         self.assertEqual(len(data.hourly_breakdown_yesterday), 1)
-        self.assertEqual(data.hourly_breakdown_yesterday[0]["uhrzeit"], "14:00 - 15:00")
+        self.assertEqual(data.hourly_breakdown_yesterday[0]["uhrzeit"], "16:00 - 17:00")
         self.assertEqual(data.hourly_breakdown_yesterday[0]["verbrauch_kwh"], 9.72)
+
+    def test_timezone_day_boundary_aggregation(self) -> None:
+        """Testet, dass UTC-Verbrauchsdaten gemäß deutscher Zeitzone (CEST, UTC+2) den richtigen Kalendertagen zugeordnet werden."""
+        local_tz = ZoneInfo("Europe/Berlin")
+        # 29. September 12:00 UTC (heute)
+        now_utc = datetime(2026, 9, 29, 12, 0, tzinfo=timezone.utc)
+
+        spot_data = [
+            # 27. Sep 00:00 CEST -> 26. Sep 22:00 UTC
+            {"date": "2026-09-26T22:00:00.000Z", "grossKwhPrice": 10.0, "grossKwhTaxAndLevies": 10.0},
+            # 28. Sep 00:00 CEST -> 27. Sep 22:00 UTC
+            {"date": "2026-09-27T22:00:00.000Z", "grossKwhPrice": 10.0, "grossKwhTaxAndLevies": 10.0},
+            # 28. Sep 23:00 CEST -> 28. Sep 21:00 UTC
+            {"date": "2026-09-28T21:00:00.000Z", "grossKwhPrice": 10.0, "grossKwhTaxAndLevies": 10.0},
+            # 29. Sep 00:00 CEST -> 28. Sep 22:00 UTC
+            {"date": "2026-09-28T22:00:00.000Z", "grossKwhPrice": 10.0, "grossKwhTaxAndLevies": 10.0},
+        ]
+
+        consumption_data = [
+            # Vorgestern (27. Sep): Erste Stunde (00:00 CEST = 26. Sep 22:00 UTC)
+            {"date": "2026-09-26T22:00:00.000Z", "kWh": 1.37},
+            # Gestern (28. Sep): Erste Stunde (00:00 CEST = 27. Sep 22:00 UTC)
+            {"date": "2026-09-27T22:00:00.000Z", "kWh": 0.51},
+            # Gestern (28. Sep): Letzte Stunde (23:00 CEST = 28. Sep 21:00 UTC)
+            {"date": "2026-09-28T21:00:00.000Z", "kWh": 9.21},
+            # Heute (29. Sep): Erste Stunde (00:00 CEST = 28. Sep 22:00 UTC)
+            {"date": "2026-09-28T22:00:00.000Z", "kWh": 0.40},
+        ]
+
+        data = self.coordinator._process_all(
+            spot_data=spot_data,
+            consumption_data=consumption_data,
+            local_tz=local_tz,
+            now_utc=now_utc,
+        )
+
+        # Vorgestern: 1.37 kWh
+        self.assertEqual(data.energy_consumption_48h, 1.37)
+        # Gestern: 0.51 + 9.21 = 9.72 kWh (exakt alle 24h des deutschen Kalendertags)
+        self.assertEqual(data.energy_consumption_yesterday, 9.72)
+        # Heute: 0.40 kWh
+        self.assertEqual(data.energy_consumption_today, 0.4)
+
+        # Überprüfe Uhrzeiten in lokaler Zeitzone
+        self.assertEqual(data.hourly_breakdown_yesterday[0]["uhrzeit"], "00:00 - 01:00")
+        self.assertEqual(data.hourly_breakdown_yesterday[1]["uhrzeit"], "23:00 - 00:00")
 
     def test_daily_and_hourly_base_fee_per_month(self) -> None:
         """Testet, dass die 14.94 EUR monatliche Grundgebühr exakt durch die Monatstage und Monatsstunden geteilt wird."""

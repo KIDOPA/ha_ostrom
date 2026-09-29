@@ -150,7 +150,7 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             local_now.date() + timedelta(days=2), time.min, tzinfo=local_tz
         )
         start_of_past = datetime.combine(
-            local_now.date() - timedelta(days=2), time.min, tzinfo=timezone.utc
+            local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
         )
 
         try:
@@ -196,10 +196,10 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
 
             if self.contract_id:
                 start_consumption = datetime.combine(
-                    local_now.date() - timedelta(days=2), time.min, tzinfo=timezone.utc
+                    local_now.date() - timedelta(days=2), time.min, tzinfo=local_tz
                 )
                 end_consumption = datetime.combine(
-                    local_now.date() + timedelta(days=1), time.min, tzinfo=timezone.utc
+                    local_now.date() + timedelta(days=1), time.min, tzinfo=local_tz
                 )
                 return await self.api.async_get_energy_consumption(
                     self.contract_id, start_consumption, end_consumption
@@ -409,42 +409,39 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
 
         for item in sorted_consumption:
             raw_date = str(item.get("date", ""))
-            date_day = raw_date[:10]
-            hour_key = raw_date[:13] if len(raw_date) >= 13 else ""
 
             try:
                 consumption_dt = self._parse_api_date(raw_date).replace(
                     minute=0, second=0, microsecond=0
                 )
-                hour_num = consumption_dt.hour
             except Exception:
-                consumption_dt = None
-                hour_num = (
-                    int(raw_date[11:13])
-                    if len(raw_date) >= 13 and raw_date[11:13].isdigit()
-                    else 0
-                )
+                continue
+
+            local_consumption_dt = consumption_dt.astimezone(local_tz)
+            item_date = local_consumption_dt.date()
+            hour_num = local_consumption_dt.hour
 
             kwh = float(item.get("kWh", item.get("kwh", item.get("consumptionKwh", 0.0))))
 
-            unit_price = prices_by_hour_key.get(hour_key)
-            market_price = market_by_hour_key.get(hour_key)
-            tax_price = tax_by_hour_key.get(hour_key)
+            unit_price = prices_by_interval.get(consumption_dt)
+            market_price = market_by_interval.get(consumption_dt)
+            tax_price = tax_by_interval.get(consumption_dt)
 
-            if unit_price is None and consumption_dt is not None:
-                unit_price = prices_by_interval.get(consumption_dt)
-                market_price = market_by_interval.get(consumption_dt)
-                tax_price = tax_by_interval.get(consumption_dt)
+            if unit_price is None:
+                utc_hour_key = consumption_dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H")
+                unit_price = prices_by_hour_key.get(utc_hour_key)
+                market_price = market_by_hour_key.get(utc_hour_key)
+                tax_price = tax_by_hour_key.get(utc_hour_key)
 
             cost_slot = round(kwh * unit_price, 4) if unit_price is not None else 0.0
             market_slot = round(kwh * market_price, 4) if market_price is not None else 0.0
             tax_slot = round(kwh * tax_price, 4) if tax_price is not None else 0.0
 
-            if date_day == today_str:
+            if item_date == today:
                 h_fee = hourly_base_fee_today
-            elif date_day == yesterday_str:
+            elif item_date == yesterday:
                 h_fee = hourly_base_fee_yesterday
-            elif date_day == two_days_ago_str:
+            elif item_date == two_days_ago:
                 h_fee = hourly_base_fee_48h
             else:
                 h_fee = 0.0
@@ -461,21 +458,21 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
                 "kosten_eur": cost_slot,
             }
 
-            if date_day == today_str:
+            if item_date == today:
                 has_today = True
                 kwh_today += kwh
                 cost_today += cost_slot
                 market_cost_today += market_slot
                 tax_cost_today += tax_slot
                 hourly_breakdown_today.append(slot_entry)
-            elif date_day == yesterday_str:
+            elif item_date == yesterday:
                 has_yesterday = True
                 kwh_yesterday += kwh
                 cost_yesterday += cost_slot
                 market_cost_yesterday += market_slot
                 tax_cost_yesterday += tax_slot
                 hourly_breakdown_yesterday.append(slot_entry)
-            elif date_day == two_days_ago_str:
+            elif item_date == two_days_ago:
                 has_48h = True
                 kwh_48h += kwh
                 cost_48h += cost_slot
