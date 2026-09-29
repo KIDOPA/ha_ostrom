@@ -26,7 +26,7 @@
 
 ---
 
-## 📋 Übersicht der 22 Sensoren
+## 📋 Übersicht der 24 Sensoren
 
 Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 
@@ -47,9 +47,11 @@ Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 | **Monatliche Grundgebühr** | `sensor.ostrom_monatliche_grundgebuhr` | `EUR` | Feste monatliche Gebühren (Ostrom + Netzentgelte). |
 | **Preisstufe** | `sensor.ostrom_preisstufe` | Text | `sehr_guenstig`, `guenstig`, `normal`, `teuer`, `sehr_teuer`. |
 | **Preis Rang heute** | `sensor.ostrom_preis_rang_heute` | Zahl | Rang der aktuellen Stunde (1 = billigste Stunde, 24 = teuerste). |
-| **Stromkosten gestern** | `sensor.ostrom_stromkosten_gestern` | `EUR` | Gesamtkosten von gestern exakt wie in der Ostrom-App (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
+| **Stromverbrauch vor 24h** | `sensor.ostrom_stromverbrauch_vor_24h` | `kWh` | Vom Smart-Meter gemessener Stundenverbrauch vor genau 24 Stunden (ideal als Quelle für Utility Meter mit `delta_values: true`). |
+| **Stromkosten vor 24h** | `sensor.ostrom_stromkosten_vor_24h` | `EUR` | Berechnete Stromkosten der Stunde vor genau 24 Stunden (inkl. anteiliger Grundgebühr). |
+| **Stromkosten gestern** | `sensor.ostrom_stromkosten_gestern` | `EUR` | Gesamtkosten von gestern (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
 | **Stromverbrauch gestern** | `sensor.ostrom_stromverbrauch_gestern` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von gestern (inkl. 24h-Stundenwerte in Attributen). |
-| **Stromkosten vor 48h** | `sensor.ostrom_stromkosten_vor_48h` | `EUR` | Gesamtkosten von vor 48 Stunden exakt wie in der Ostrom-App (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
+| **Stromkosten vor 48h** | `sensor.ostrom_stromkosten_vor_48h` | `EUR` | Gesamtkosten von vor 48 Stunden (inkl. anteiliger Grundgebühr; Marktpreis, Abgaben & 24h-Stundenwerte in Attributen). |
 | **Stromverbrauch vor 48h** | `sensor.ostrom_stromverbrauch_vor_48h` | `kWh` | Vom Smart-Meter gemessener Gesamtverbrauch von vor 48 Stunden (inkl. 24h-Stundenwerte in Attributen). |
 | **Stromkosten heute** | `sensor.ostrom_stromkosten_heute` | `EUR` | Aufgelaufene Kosten heute (sobald Daten vorliegen). |
 | **Stromverbrauch heute** | `sensor.ostrom_stromverbrauch_heute` | `kWh` | Gemessener Verbrauch heute (sobald Daten vorliegen). |
@@ -67,6 +69,38 @@ Alle Sensoren werden unter dem Gerät **Ostrom (<Deine-PLZ>)** gebündelt:
 >
 > **Tipp für Live-Kosten in Echtzeit:**  
 > Möchtest du deine Stromkosten sekundengenau und ohne 48h Verzögerung verfolgen, binde deinen Stromzähler (z. B. via IR-Lesekopf / Shelly 3EM) in das offizielle **Home Assistant Energie-Dashboard** ein und wähle dort `sensor.ostrom_aktueller_strompreis` als dynamische Preisentität!
+
+---
+
+## 📈 Kumulierter Verbrauch & Kosten mit dem Utility Meter (Verbrauchszähler)
+
+Möchtest du deinen Stromverbrauch oder deine Stromkosten täglich, monatlich oder jährlich automatisch kumulieren lassen, nutze den Sensor `sensor.ostrom_stromverbrauch_vor_24h` bzw. `sensor.ostrom_stromkosten_vor_24h` zusammen mit dem offiziellen Home Assistant **Utility Meter (Verbrauchszähler)** Helfer.
+
+> [!IMPORTANT]
+> Da `sensor.ostrom_stromverbrauch_vor_24h` jeweils den stündlichen Verbrauchswert (Delta) liefert, aktiviere im Utility Meter unbedingt die Option **Delta-Werte** (`delta_values: true`).
+
+### Einrichtung über die Benutzeroberfläche:
+1. Gehe zu **Einstellungen** $\rightarrow$ **Geräte & Dienste** $\rightarrow$ **Helfer**.
+2. Klicke auf **+ Helfer erstellen** und wähle **Verbrauchszähler** (Utility Meter).
+3. **Eingabesensor:** `sensor.ostrom_stromverbrauch_vor_24h` (für kWh) oder `sensor.ostrom_stromkosten_vor_24h` (für €)
+4. **Rücksetzzyklus:** `Täglich`, `Monatlich` oder `Jährlich`
+5. **Delta-Werte:** Setze das Häkchen bei **„Werte stellen den Verbrauch seit der letzten Aktualisierung dar (Delta-Werte)“**!
+
+### Oder via `configuration.yaml`:
+```yaml
+utility_meter:
+  ostrom_verbrauch_monatlich:
+    source: sensor.ostrom_stromverbrauch_vor_24h
+    cycle: monthly
+    delta_values: true
+    name: "Ostrom Verbrauch Monatlich"
+
+  ostrom_stromkosten_monatlich:
+    source: sensor.ostrom_stromkosten_vor_24h
+    cycle: monthly
+    delta_values: true
+    name: "Ostrom Stromkosten Monatlich"
+```
 
 ---
 

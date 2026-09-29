@@ -44,6 +44,8 @@
       "energy_consumption_yesterday": {"name": "Stromverbrauch gestern"},
       "accrued_cost_48h": {"name": "Stromkosten vor 48h"},
       "energy_consumption_48h": {"name": "Stromverbrauch vor 48h"},
+      "consumption_24h_ago": {"name": "Stromverbrauch vor 24h"},
+      "cost_24h_ago": {"name": "Stromkosten vor 24h"},
       "meter_reading": {"name": "Zählerstand"}
     }
   }

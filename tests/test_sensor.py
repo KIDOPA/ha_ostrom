@@ -19,6 +19,8 @@ from custom_components.ostrom_custom.sensor import (
     OstromConsumptionTodaySensor,
     OstromConsumptionYesterdaySensor,
     OstromConsumption48hSensor,
+    OstromConsumption24hSensor,
+    OstromHourlyCost24hSensor,
     OstromCurrentPriceSensor,
     OstromHighestPriceTimeTodaySensor,
     OstromLowestPriceTimeTodaySensor,
@@ -78,6 +80,13 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
             total_cost_48h_with_base_fee=3.45,
             energy_consumption_48h=9.2,
             date_48h="2026-09-27",
+            consumption_24h_ago=0.45,
+            cost_24h_ago=0.12,
+            total_cost_24h_ago_with_base_fee=0.14,
+            price_24h_ago=0.285,
+            time_24h_ago="14:00 - 15:00",
+            date_24h_ago="2026-09-28",
+            timestamp_24h_ago="2026-09-28T14:00:00+02:00",
             prices_today=[{"timestamp": "2026-09-29T12:00:00", "price": 0.285}],
             prices_tomorrow=[{"timestamp": "2026-09-30T12:00:00", "price": 0.275}],
             forecast=[
@@ -94,7 +103,7 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
 
         await async_setup_entry(self.hass, self.entry, async_add_entities)
 
-        self.assertEqual(len(added_entities), 22)
+        self.assertEqual(len(added_entities), 24)
         entity_classes = [e.__class__.__name__ for e in added_entities]
         self.assertIn("OstromCurrentPriceSensor", entity_classes)
         self.assertIn("OstromNextHourPriceSensor", entity_classes)
@@ -112,6 +121,8 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
         self.assertIn("OstromConsumptionYesterdaySensor", entity_classes)
         self.assertIn("OstromAccruedCost48hSensor", entity_classes)
         self.assertIn("OstromConsumption48hSensor", entity_classes)
+        self.assertIn("OstromConsumption24hSensor", entity_classes)
+        self.assertIn("OstromHourlyCost24hSensor", entity_classes)
 
     def test_forecast_and_future_sensors(self) -> None:
         sensor_current = OstromCurrentPriceSensor(self.coordinator, self.entry)
@@ -140,6 +151,19 @@ class TestOstromSensors(unittest.IsolatedAsyncioTestCase):
 
         sensor_kwh_48h = OstromConsumption48hSensor(self.coordinator, self.entry)
         self.assertEqual(sensor_kwh_48h.native_value, 9.2)
+
+    def test_24h_ago_sensors(self) -> None:
+        sensor_consumption_24h = OstromConsumption24hSensor(self.coordinator, self.entry)
+        self.assertEqual(sensor_consumption_24h.native_value, 0.45)
+        self.assertEqual(sensor_consumption_24h.extra_state_attributes["zeitfenster"], "14:00 - 15:00")
+        self.assertEqual(sensor_consumption_24h.extra_state_attributes["datum"], "2026-09-28")
+        self.assertEqual(sensor_consumption_24h.extra_state_attributes["kosten_reiner_verbrauch_eur"], 0.12)
+        self.assertEqual(sensor_consumption_24h.extra_state_attributes["kosten_gesamt_inkl_grundgebuehr_eur"], 0.14)
+
+        sensor_cost_24h = OstromHourlyCost24hSensor(self.coordinator, self.entry)
+        self.assertEqual(sensor_cost_24h.native_value, 0.14)
+        self.assertEqual(sensor_cost_24h.extra_state_attributes["verbrauch_kwh"], 0.45)
+        self.assertEqual(sensor_cost_24h.extra_state_attributes["reine_verbrauchskosten_eur"], 0.12)
 
 
 if __name__ == "__main__":

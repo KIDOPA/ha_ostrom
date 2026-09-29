@@ -44,6 +44,8 @@
       "energy_consumption_yesterday": {"name": "Electricity consumption yesterday"},
       "accrued_cost_48h": {"name": "Electricity cost 48h ago"},
       "energy_consumption_48h": {"name": "Electricity consumption 48h ago"},
+      "consumption_24h_ago": {"name": "Electricity consumption 24h ago"},
+      "cost_24h_ago": {"name": "Electricity cost 24h ago"},
       "meter_reading": {"name": "Meter reading"}
     }
   }

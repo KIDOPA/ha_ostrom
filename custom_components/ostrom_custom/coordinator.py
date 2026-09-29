@@ -91,6 +91,15 @@ class OstromData:
     date_48h: str | None = None
     hourly_breakdown_48h: list[dict[str, Any]] = field(default_factory=list)
 
+    # Stundenwerte vor 24h (T-24h, ideal für Utility Meter)
+    consumption_24h_ago: float | None = None
+    cost_24h_ago: float | None = None
+    total_cost_24h_ago_with_base_fee: float | None = None
+    price_24h_ago: float | None = None
+    time_24h_ago: str | None = None
+    date_24h_ago: str | None = None
+    timestamp_24h_ago: str | None = None
+
     # Verläufe & Forecast (ApexCharts / Energy Dashboard kompatibel)
     prices_today: list[dict[str, Any]] = field(default_factory=list)
     prices_tomorrow: list[dict[str, Any]] = field(default_factory=list)
@@ -221,8 +230,8 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
         local_tz: ZoneInfo | timezone,
         now_utc: datetime,
     ) -> OstromData:
-        """Verarbeitet Rohdaten in strukturierte Sensorwerte inklusive voller Kostenbestandteile."""
-        today = now_utc.astimezone(local_tz).date()
+        local_now = now_utc.astimezone(local_tz)
+        today = local_now.date()
         tomorrow = today + timedelta(days=1)
 
         prices_today: list[dict[str, Any]] = []
@@ -448,6 +457,9 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
 
             slot_entry = {
                 "uhrzeit": f"{hour_num:02d}:00 - {(hour_num + 1) % 24:02d}:00",
+                "stunde": hour_num,
+                "datum": str(item_date),
+                "timestamp": local_consumption_dt.isoformat(),
                 "verbrauch_kwh": round(kwh, 4),
                 "arbeitspreis_eur_kwh": round(unit_price, 5) if unit_price is not None else None,
                 "marktpreis_eur_kwh": round(market_price, 5) if market_price is not None else None,
@@ -515,6 +527,40 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             round(kwh_48h, 3) if has_48h else None
         )
 
+        # Stundenwert vor 24h ermitteln (entspricht der aktuellen Stunde von gestern / T-24h)
+        current_local_hour = local_now.hour
+        slot_24h = None
+        for slot in hourly_breakdown_yesterday:
+            if slot.get("stunde") == current_local_hour:
+                slot_24h = slot
+                break
+
+        consumption_24h_ago = None
+        cost_24h_ago = None
+        total_cost_24h_ago_with_base_fee = None
+        price_24h_ago = None
+        time_24h_ago = None
+        date_24h_ago = None
+        timestamp_24h_ago = None
+
+        if slot_24h is not None:
+            consumption_24h_ago = slot_24h.get("verbrauch_kwh")
+            cost_24h_ago = slot_24h.get("kosten_reiner_verbrauch_eur")
+            total_cost_24h_ago_with_base_fee = slot_24h.get("kosten_gesamt_inkl_grundgebuehr_eur")
+            price_24h_ago = slot_24h.get("arbeitspreis_eur_kwh")
+            time_24h_ago = slot_24h.get("uhrzeit")
+            date_24h_ago = slot_24h.get("datum")
+            timestamp_24h_ago = slot_24h.get("timestamp")
+        elif hourly_breakdown_yesterday:
+            latest_slot = hourly_breakdown_yesterday[-1]
+            consumption_24h_ago = latest_slot.get("verbrauch_kwh")
+            cost_24h_ago = latest_slot.get("kosten_reiner_verbrauch_eur")
+            total_cost_24h_ago_with_base_fee = latest_slot.get("kosten_gesamt_inkl_grundgebuehr_eur")
+            price_24h_ago = latest_slot.get("arbeitspreis_eur_kwh")
+            time_24h_ago = latest_slot.get("uhrzeit")
+            date_24h_ago = latest_slot.get("datum")
+            timestamp_24h_ago = latest_slot.get("timestamp")
+
         return OstromData(
             current_price=current_price,
             next_hour_price=next_hour_price,
@@ -559,6 +605,13 @@ class OstromDataCoordinator(DataUpdateCoordinator[OstromData]):
             energy_consumption_48h=energy_consumption_48h,
             date_48h=str(two_days_ago),
             hourly_breakdown_48h=hourly_breakdown_48h,
+            consumption_24h_ago=consumption_24h_ago,
+            cost_24h_ago=cost_24h_ago,
+            total_cost_24h_ago_with_base_fee=total_cost_24h_ago_with_base_fee,
+            price_24h_ago=price_24h_ago,
+            time_24h_ago=time_24h_ago,
+            date_24h_ago=date_24h_ago,
+            timestamp_24h_ago=timestamp_24h_ago,
             prices_today=prices_today,
             prices_tomorrow=prices_tomorrow,
             forecast=forecast,

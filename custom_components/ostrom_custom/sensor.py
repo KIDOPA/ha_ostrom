@@ -56,13 +56,15 @@ async def async_setup_entry(
             OstromPriceLevelSensor(coordinator, entry),
             OstromRankSensor(coordinator, entry),
 
-            # Verbrauch & Kosten (Heute, Gestern, Vor 48h)
+            # Verbrauch & Kosten (Heute, Gestern, Vor 48h, Vor 24h)
             OstromAccruedCostSensor(coordinator, entry),
             OstromConsumptionTodaySensor(coordinator, entry),
             OstromAccruedCostYesterdaySensor(coordinator, entry),
             OstromConsumptionYesterdaySensor(coordinator, entry),
             OstromAccruedCost48hSensor(coordinator, entry),
             OstromConsumption48hSensor(coordinator, entry),
+            OstromConsumption24hSensor(coordinator, entry),
+            OstromHourlyCost24hSensor(coordinator, entry),
             OstromMeterReadingSensor(coordinator, entry),
         ]
     )
@@ -551,3 +553,61 @@ class OstromMeterReadingSensor(OstromBaseSensor):
     @property
     def native_value(self) -> float | None:
         return self.coordinator.data.meter_reading
+
+
+class OstromConsumption24hSensor(OstromBaseSensor):
+    """Stundenverbrauch von vor 24 Stunden (ideal für Utility Meter)."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_icon = "mdi:clock-check-outline"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromverbrauch vor 24h"
+        self._attr_unique_id = f"{self._entry_id}_consumption_24h_ago"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.consumption_24h_ago
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "zeitfenster": self.coordinator.data.time_24h_ago,
+            "datum": self.coordinator.data.date_24h_ago,
+            "timestamp": self.coordinator.data.timestamp_24h_ago,
+            "arbeitspreis_eur_kwh": self.coordinator.data.price_24h_ago,
+            "kosten_reiner_verbrauch_eur": self.coordinator.data.cost_24h_ago,
+            "kosten_gesamt_inkl_grundgebuehr_eur": self.coordinator.data.total_cost_24h_ago_with_base_fee,
+        }
+
+
+class OstromHourlyCost24hSensor(OstromBaseSensor):
+    """Stündliche Stromkosten von vor 24 Stunden (ideal für Utility Meter Kosten-Tracking)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "EUR"
+    _attr_icon = "mdi:cash-clock"
+
+    def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_name = "Stromkosten vor 24h"
+        self._attr_unique_id = f"{self._entry_id}_cost_24h_ago"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.total_cost_24h_ago_with_base_fee
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "zeitfenster": self.coordinator.data.time_24h_ago,
+            "datum": self.coordinator.data.date_24h_ago,
+            "timestamp": self.coordinator.data.timestamp_24h_ago,
+            "verbrauch_kwh": self.coordinator.data.consumption_24h_ago,
+            "arbeitspreis_eur_kwh": self.coordinator.data.price_24h_ago,
+            "reine_verbrauchskosten_eur": self.coordinator.data.cost_24h_ago,
+        }
