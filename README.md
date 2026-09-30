@@ -1,7 +1,7 @@
 # ⚡ Ostrom Integration für Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/default)
-[![GitHub release](https://img.shields.io/github/v/release/KIDOPA/ha_ostrom?style=for-the-badge&color=blue)](https://github.com/KIDOPA/ha_ostrom/releases)
+[![GitHub release](https://img.shields.io/github/v/tag/KIDOPA/ha_ostrom?label=Release&style=for-the-badge&color=blue)](https://github.com/KIDOPA/ha_ostrom/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blueviolet?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
