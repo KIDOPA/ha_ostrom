@@ -56,15 +56,15 @@ async def async_setup_entry(
             OstromPriceLevelSensor(coordinator, entry),
             OstromRankSensor(coordinator, entry),
 
-            # Verbrauch & Kosten (Heute, Gestern, Vor 48h, Vor 24h)
+            # Verbrauch & Kosten (Heute, Gestern, Vor 48h)
             OstromAccruedCostSensor(coordinator, entry),
             OstromConsumptionTodaySensor(coordinator, entry),
             OstromAccruedCostYesterdaySensor(coordinator, entry),
             OstromConsumptionYesterdaySensor(coordinator, entry),
             OstromAccruedCost48hSensor(coordinator, entry),
             OstromConsumption48hSensor(coordinator, entry),
-            OstromConsumption24hSensor(coordinator, entry),
-            OstromHourlyCost24hSensor(coordinator, entry),
+            OstromHourlyConsumption48hSensor(coordinator, entry),
+            OstromHourlyCost48hSensor(coordinator, entry),
             OstromMeterReadingSensor(coordinator, entry),
         ]
     )
@@ -555,8 +555,8 @@ class OstromMeterReadingSensor(OstromBaseSensor):
         return self.coordinator.data.meter_reading
 
 
-class OstromConsumption24hSensor(OstromBaseSensor):
-    """Stundenverbrauch von vor 24 Stunden (ideal für Utility Meter)."""
+class OstromHourlyConsumption48hSensor(OstromBaseSensor):
+    """Stundenverbrauch von vor 48 Stunden (ideal für Utility Meter)."""
 
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_state_class = SensorStateClass.TOTAL
@@ -565,27 +565,27 @@ class OstromConsumption24hSensor(OstromBaseSensor):
 
     def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_name = "Stromverbrauch vor 24h"
-        self._attr_unique_id = f"{self._entry_id}_consumption_24h_ago"
+        self._attr_name = "Stundenverbrauch vor 48h"
+        self._attr_unique_id = f"{self._entry_id}_hourly_consumption_48h"
 
     @property
     def native_value(self) -> float | None:
-        return self.coordinator.data.consumption_24h_ago
+        return self.coordinator.data.hourly_consumption_48h
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
-            "zeitfenster": self.coordinator.data.time_24h_ago,
-            "datum": self.coordinator.data.date_24h_ago,
-            "timestamp": self.coordinator.data.timestamp_24h_ago,
-            "arbeitspreis_eur_kwh": self.coordinator.data.price_24h_ago,
-            "kosten_reiner_verbrauch_eur": self.coordinator.data.cost_24h_ago,
-            "kosten_gesamt_inkl_grundgebuehr_eur": self.coordinator.data.total_cost_24h_ago_with_base_fee,
+            "zeitfenster": self.coordinator.data.hourly_time_48h,
+            "datum": self.coordinator.data.hourly_date_48h,
+            "timestamp": self.coordinator.data.hourly_timestamp_48h,
+            "arbeitspreis_eur_kwh": self.coordinator.data.hourly_price_48h,
+            "kosten_reiner_verbrauch_eur": self.coordinator.data.hourly_cost_48h,
+            "kosten_gesamt_inkl_grundgebuehr_eur": self.coordinator.data.hourly_total_cost_48h,
         }
 
 
-class OstromHourlyCost24hSensor(OstromBaseSensor):
-    """Stündliche Stromkosten von vor 24 Stunden (ideal für Utility Meter Kosten-Tracking)."""
+class OstromHourlyCost48hSensor(OstromBaseSensor):
+    """Stündliche Stromkosten von vor 48 Stunden (ideal für Utility Meter Kosten-Tracking)."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
@@ -594,20 +594,21 @@ class OstromHourlyCost24hSensor(OstromBaseSensor):
 
     def __init__(self, coordinator: OstromDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_name = "Stromkosten vor 24h"
-        self._attr_unique_id = f"{self._entry_id}_cost_24h_ago"
+        self._attr_name = "Stundenkosten vor 48h"
+        self._attr_unique_id = f"{self._entry_id}_hourly_cost_48h"
 
     @property
     def native_value(self) -> float | None:
-        return self.coordinator.data.total_cost_24h_ago_with_base_fee
+        return self.coordinator.data.hourly_total_cost_48h
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
-            "zeitfenster": self.coordinator.data.time_24h_ago,
-            "datum": self.coordinator.data.date_24h_ago,
-            "timestamp": self.coordinator.data.timestamp_24h_ago,
-            "verbrauch_kwh": self.coordinator.data.consumption_24h_ago,
-            "arbeitspreis_eur_kwh": self.coordinator.data.price_24h_ago,
-            "reine_verbrauchskosten_eur": self.coordinator.data.cost_24h_ago,
+            "zeitfenster": self.coordinator.data.hourly_time_48h,
+            "datum": self.coordinator.data.hourly_date_48h,
+            "timestamp": self.coordinator.data.hourly_timestamp_48h,
+            "verbrauch_kwh": self.coordinator.data.hourly_consumption_48h,
+            "arbeitspreis_eur_kwh": self.coordinator.data.hourly_price_48h,
+            "reine_verbrauchskosten_eur": self.coordinator.data.hourly_cost_48h,
+            "kosten_gesamt_inkl_grundgebuehr_eur": self.coordinator.data.hourly_total_cost_48h,
         }

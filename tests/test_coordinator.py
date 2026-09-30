@@ -259,14 +259,14 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
         # 14.94 / (30 * 24) = 0.02075 EUR / Stunde
         self.assertEqual(data_september.hourly_base_fee_today, 0.02075)
 
-    def test_consumption_24h_ago(self) -> None:
-        """Testet, dass der Stundensensor exakt den Verbrauch der gleichen Stunde von gestern (T-24h) liefert."""
+    def test_hourly_consumption_and_cost_48h(self) -> None:
+        """Testet, dass der Stundensensor exakt den Verbrauch der gleichen Stunde von vor 48h (T-48h) liefert."""
         local_tz = ZoneInfo("Europe/Berlin")
-        # Heute 14:15 CEST -> 12:15 UTC
-        now_utc = datetime(2026, 9, 29, 12, 15, tzinfo=timezone.utc)
+        # Heute 14:15 CEST -> 12:15 UTC am 30. September 2026
+        now_utc = datetime(2026, 9, 30, 12, 15, tzinfo=timezone.utc)
 
         spot_data = [
-            # Gestern 14:00 CEST -> 12:00 UTC
+            # Vor 48h: 28. September 14:00 CEST -> 12:00 UTC
             {
                 "date": "2026-09-28T12:00:00.000Z",
                 "grossKwhPrice": 15.0,
@@ -274,7 +274,7 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
                 "grossMonthlyOstromBaseFee": 14.94,
                 "grossMonthlyGridFees": 0.0,
             },
-            # Gestern 15:00 CEST -> 13:00 UTC
+            # Vor 48h: 28. September 15:00 CEST -> 13:00 UTC
             {
                 "date": "2026-09-28T13:00:00.000Z",
                 "grossKwhPrice": 20.0,
@@ -284,10 +284,10 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
             },
         ]
         consumption_data = [
-            # Gestern 14:00 CEST -> 12:00 UTC (genau vor 24h)
-            {"date": "2026-09-28T12:00:00.000Z", "kWh": 0.75},
-            # Gestern 15:00 CEST -> 13:00 UTC
-            {"date": "2026-09-28T13:00:00.000Z", "kWh": 1.20},
+            # Vor 48h: 14:00 CEST -> 12:00 UTC (gleiche Stunde wie jetzt, aber vor 2 Tagen)
+            {"date": "2026-09-28T12:00:00.000Z", "kWh": 0.80},
+            # Vor 48h: 15:00 CEST -> 13:00 UTC
+            {"date": "2026-09-28T13:00:00.000Z", "kWh": 1.25},
         ]
 
         data = self.coordinator._process_all(
@@ -297,12 +297,15 @@ class TestOstromDataCoordinator(unittest.IsolatedAsyncioTestCase):
             now_utc=now_utc,
         )
 
-        self.assertEqual(data.consumption_24h_ago, 0.75)
-        self.assertEqual(data.time_24h_ago, "14:00 - 15:00")
-        self.assertEqual(data.date_24h_ago, "2026-09-28")
-        # 0.75 kWh * 0.30 EUR/kWh = 0.225 EUR
-        self.assertAlmostEqual(data.cost_24h_ago, 0.225, places=3)
-        self.assertAlmostEqual(data.price_24h_ago, 0.30, places=3)
+        self.assertEqual(data.hourly_consumption_48h, 0.80)
+        self.assertEqual(data.hourly_time_48h, "14:00 - 15:00")
+        self.assertEqual(data.hourly_date_48h, "2026-09-28")
+        self.assertEqual(data.hourly_timestamp_48h, "2026-09-28T14:00:00+02:00")
+        # 0.80 kWh * 0.30 EUR/kWh = 0.24 EUR
+        self.assertAlmostEqual(data.hourly_cost_48h, 0.24, places=3)
+        self.assertAlmostEqual(data.hourly_price_48h, 0.30, places=3)
+        # 0.24 + 0.02075 EUR anteilige Grundgebühr = 0.26075 -> 0.2607 EUR (round-half-to-even)
+        self.assertAlmostEqual(data.hourly_total_cost_48h, 0.2607, places=4)
 
 
 if __name__ == "__main__":
